@@ -1,8 +1,6 @@
 # PyHARP
 
-PyHARP is a Python library designed to embed Gradio apps for audio processing in a Digital Audio Workstation (DAW) through the [HARP](https://github.com/audacitorch/HARP) plugin. 
-
-PyHARP creates hosted, asynchronous, remote processing (HARP) endpoints in Digital Audio Workstations (DAWs), facilitating the integration of deep learning audio models into DAW environments through Gradio.
+PyHARP is a Python library designed to embed Gradio apps for audio processing in a Digital Audio Workstation (DAW) through the [HARP](https://github.com/audacitorch/HARP) plugin. PyHARP creates hosted, asynchronous, remote processing (HARP) endpoints in DAWs, facilitating the integration of deep learning audio models into DAW environments through Gradio.
 
 PyHARP makes use of [Gradio]() to provide a web endpoint for your python processing code, and [ARA]() to route audio from the DAW to the Gradio endpoint. 
 
