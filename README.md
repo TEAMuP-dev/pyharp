@@ -97,6 +97,11 @@ Now, we'll create a Gradio interface for our processing function, connecting the
 
 To achieve this, we'll create a list of Gradio input widgets, as well as an audio output widget, then use the `build_endpoint` function from PyHARP to create a Gradio interface for our processing function. 
 
+**NOTE**: make sure that the order of your inputs matches the order of the defined arguments in your processing function. 
+
+**NOTE**: all of the `gr.Audio` widgets MUST have `type="filepath"` in order to work with HARP.
+
+
 ```python
 # Build the endpoint
 with gr.Blocks() as demo:

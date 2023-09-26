@@ -1,0 +1,2 @@
+descript-audiotools
+librosa

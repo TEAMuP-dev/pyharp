@@ -1,1 +1,1 @@
-audiotools
+descript-audiotools
