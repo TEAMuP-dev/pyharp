@@ -47,6 +47,7 @@ pip install -r requirements.txt
 
 Here are some of the examples available:
 - [Pitch Shifter](examples/pitch_shifter/)
+- [Harmonic/Percussive Source Separation](examples/harmonic_percussive/)
 
 # Tutorial: Making a HARP Pitch Shifter.
 
