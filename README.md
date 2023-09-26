@@ -48,7 +48,7 @@ pip install -r requirements.txt
 Here are some of the examples available:
 - [Pitch Shifter](examples/pitch_shifter/)
 
-# Tutorial: Making a HARP Harmonic/Percussive Separator.
+# Tutorial: Making a HARP Pitch Shifter.
 
 To make a HARP app, you'll need to write some audio processing code and wrap it using Gradio and PyHARP.
 
