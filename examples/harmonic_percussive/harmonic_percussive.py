@@ -39,7 +39,7 @@ def process_fn(audio_file,
                margin: float = 1.0):
     sig = AudioSignal(audio_file)
     
-    harmonic, percussive = hpss(sig, kernel_size=kernel_size, margin=margin)
+    harmonic, percussive = hpss(sig, kernel_size=int(kernel_size), margin=margin)
 
     def clip(db):
         if db == MIN_DB:
