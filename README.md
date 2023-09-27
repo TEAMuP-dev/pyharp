@@ -143,3 +143,21 @@ This will create a local Gradio endpoint on `http://localhost:<PORT>`, as well a
 
 Note that automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep your endpoint alive and share it with other users, you can easily create a [HuggingFace Space](https://huggingface.co/docs/hub/spaces-overview) to host your HARP app indefinitely, or alternatively, host your gradio app using other hosting services.  
 
+
+## 
+
+1. Create the space in HuggingFace Spaces
+
+2. Create a repo and add your space link as a remote
+```bash
+git init
+git remote add origin https://huggingface.co/spaces/<YOUR_USERNAME>/<YOUR_SPACE_NAME>
+git pull
+```
+
+3. Add your files to the repo
+```bash
+git add .
+git commit -m "first commit"
+git push -u origin master
+```

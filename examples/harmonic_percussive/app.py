@@ -74,33 +74,25 @@ with gr.Blocks() as demo:
         gr.Audio(
             label="Audio Input", 
             type="filepath"
-        ), # make sure to have an audio input with type="filepath"!
+        ), 
         gr.Slider(
-            minimum=MIN_DB, 
-            maximum=24, 
-            step=1, 
-            value=0, 
+            minimum=MIN_DB, maximum=24, 
+            step=1, value=0, 
             label="Harmonic Level (dB)"
         ),
         gr.Slider(
-            minimum=MIN_DB, 
-            maximum=24, 
-            step=1, 
-            value=0, 
+            minimum=MIN_DB, maximum=24, 
+            step=1, value=0, 
             label="Percussive Level (dB)"
         ),
         gr.Slider(
-            minimum=1, 
-            maximum=101, 
-            step=1, 
-            value=31, 
+            minimum=1, maximum=101, 
+            step=1, value=31, 
             label="Kernel Size"
         ),
         gr.Slider(
-            minimum=0.5, 
-            maximum=5.0, 
-            step=0.1, 
-            value=1.0, 
+            minimum=0.5, maximum=5.0, 
+            step=0.1, value=1.0, 
             label="Margin"
         ),
     ]

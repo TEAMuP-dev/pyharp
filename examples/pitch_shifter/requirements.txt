@@ -1,1 +1,2 @@
 descript-audiotools
+-e git+https://github.com/audacitorch/pyharp.git#egg=pyharp

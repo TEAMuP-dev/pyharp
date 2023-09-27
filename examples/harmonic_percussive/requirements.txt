@@ -1,2 +1,3 @@
 descript-audiotools
 librosa
+-e git+https://github.com/audacitorch/pyharp.git#egg=pyharp
