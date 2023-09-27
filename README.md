@@ -5,7 +5,6 @@ PyHARP is a Python library designed to embed Gradio apps for audio processing in
 PyHARP makes use of [Gradio](https://www.gradio.app) to provide a web endpoint for your python processing code, and [ARA](https://blog.landr.com/ara2-plugins/) to route audio from the DAW to the Gradio endpoint. 
 
 ## What is HARP? 
-TODO: fill all the links
 
 HARP is designed for processing audio in a DAW with deep learning models that are too large to run in real-time and/or on a user's CPU, or otherwise require a large offline context for processing. There are many examples of these kinds of models, like the [DEMUCS audio source separator](https://huggingface.co/spaces/Thafx/Demucs_v4_2s_HT).  
 
