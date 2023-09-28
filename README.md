@@ -6,7 +6,7 @@ PyHARP makes use of [Gradio](https://www.gradio.app) to provide a web endpoint f
 
 ## What is HARP? 
 
-HARP is designed for processing audio in a DAW with deep learning models that are too large to run in real-time and/or on a user's CPU, or otherwise require a large offline context for processing. There are many examples of these kinds of models, like the [DEMUCS audio source separator](https://huggingface.co/spaces/Thafx/Demucs_v4_2s_HT).  
+HARP is designed for processing audio in a DAW with deep learning models that are too large to run in real-time and/or on a user's CPU, or otherwise require a large offline context for processing. There are many examples of these kinds of models, like [MusicGen](https://huggingface.co/spaces/facebook/MusicGen) or [VampNet](https://huggingface.co/spaces/descript/vampnet). 
 
 HARP makes use of the [ARA](https://blog.landr.com/ara2-plugins/) framework to access all of the audio data in a track asynchronously, allowing the audio to be processed offline by a remote server, like a [Gradio application](https://www.gradio.app/demos) hosted in a [Hugging Face Space](https://huggingface.co/spaces).
 
