@@ -4,3 +4,4 @@ _outputs
 .DS_Store
 
 examples/**/.git/
+examples/MusicGen
