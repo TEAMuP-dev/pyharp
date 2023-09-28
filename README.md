@@ -26,6 +26,8 @@ PyHARP, on the other hand, relies on [Gradio](), which allows for the use of any
 ## Download HARP
 To use pyHARP apps in your DAW, you'll need the [HARP](https://github.com/audacitorch/harp) plugin. HARP is available as an ARA VST3 plugin, and can be used by any DAW host that supports the ARA framework. 
 
+You can download HARP from the HARP [releases](https://github.com/audacitorch/HARP/releases) page. 
+
 ## Installing PyHARP
 ```
 git clone https://github.com/audacitorch/pyharp.git
