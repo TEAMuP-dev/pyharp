@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='pyHARP',
+    name='pyharp',
     version='0.0.1',
     url='https://github.com/audacitorch/pyharp',
     author='Hugo Flores García, Christos Benetatos, Patrick O\'Reilly and Aldo Aguilar',
