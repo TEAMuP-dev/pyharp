@@ -51,6 +51,20 @@ class ModelCard:
         return f"ModelCard({self.name}, {self.description}, {self.author}, {self.tags})"
 
 
+def save_and_return_filepath(sig):
+    """
+    This function can be used at the end of a process_fn to write the output to a file and return the path.
+
+    Usage of this function is optional. If you don't use you, you must return a filepath string from your process_fn.
+    """
+    
+    output_dir = Path("_outputs")
+     # clear the output directory for any previous runs
+    shutil.rmtree(output_dir)
+    output_dir.mkdir(exist_ok=True)
+    sig.write(output_dir / "output.wav")
+    return sig.path_to_file
+
 
 def build_ctrls(inputs: list) -> List[Ctrl]:
     """Builds a list of Ctrl objects based on Gradio input controls.
@@ -127,7 +141,10 @@ def build_endpoint(
             the HARP client. Currently, HARP supports gr.Slider, gr.Textbox, and gr.Audio widgets as inputs.
 
         output (gr.Audio): Gradio output audio widget.
-        process_fn (callable): Function processing the inputs to generate the output.
+        process_fn (callable): 
+            Function processing the inputs to generate the output.
+            The function must accept the inputs in the same order as the inputs list.
+            The function must return a filepath string pointing to the output audio file.
         card (ModelCard): A ModelCard object describing the model.
         visible (bool, optional): Specifies visibility of the endpoint in the Gradio UI. Defaults to True.
 

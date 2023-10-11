@@ -6,7 +6,7 @@ import torch
 from audiotools import AudioSignal
 
 import gradio as gr
-from pyharp import ModelCard, build_endpoint
+from pyharp import ModelCard, build_endpoint, save_and_return_filepath
 
 
 def hpss(signal: AudioSignal, **kwargs):
@@ -53,10 +53,7 @@ def process_fn(audio_file,
         + percussive.volume_change(clip(percussive_db))
     )
 
-    output_dir = Path("_outputs")
-    output_dir.mkdir(exist_ok=True)
-    sig.write(output_dir / "output.wav")
-    return sig.path_to_file
+    return save_and_return_filepath(sig)
     
 # Create a ModelCard
 card = ModelCard(

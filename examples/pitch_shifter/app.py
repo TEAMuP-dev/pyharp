@@ -1,6 +1,7 @@
 from pathlib import Path
 import gradio as gr
-from pyharp import ModelCard, build_endpoint
+import shutil
+from pyharp import ModelCard, build_endpoint, save_and_return_filepath
 
 # Define the process function
 def process_fn(input_audio, pitch_shift_amount):
@@ -9,10 +10,7 @@ def process_fn(input_audio, pitch_shift_amount):
     sig = AudioSignal(input_audio)
     sig.pitch_shift(pitch_shift_amount)
 
-    output_dir = Path("_outputs")
-    output_dir.mkdir(exist_ok=True)
-    sig.write(output_dir / "output.wav")
-    return sig.path_to_file
+    return save_and_return_filepath(sig)
 
 # Create a ModelCard
 card = ModelCard(

@@ -66,6 +66,7 @@ Our function  will take two arguments:
 - `pitch_shift`: the amount of pitch shift to apply to the audio
 
 ```python
+from pyharp import save_and_return_filepath
 # Define the process function
 def process_fn(input_audio, pitch_shift_amount):
     from audiotools import AudioSignal
@@ -73,10 +74,8 @@ def process_fn(input_audio, pitch_shift_amount):
     sig = AudioSignal(input_audio)
     sig.pitch_shift(pitch_shift_amount)
 
-    output_dir = Path("_outputs")
-    output_dir.mkdir(exist_ok=True)
-    sig.write(output_dir / "output.wav")
-    return sig.path_to_file # return the path to the output file
+    # return the path to the output file
+    return save_and_return_filepath(sig) 
 ```
 
 ## Create a Model Card
