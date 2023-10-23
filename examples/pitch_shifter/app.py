@@ -1,14 +1,28 @@
+import torch
+import torchaudio 
+
 from pathlib import Path
 import gradio as gr
 import shutil
 from pyharp import ModelCard, build_endpoint, save_and_return_filepath
 
 # Define the process function
+@torch.inference_mode()
 def process_fn(input_audio, pitch_shift_amount):
     from audiotools import AudioSignal
-    
+
+    if isinstance(pitch_shift_amount, torch.Tensor):
+        pitch_shift_amount = pitch_shift_amount.long().item()
+
     sig = AudioSignal(input_audio)
-    sig.pitch_shift(pitch_shift_amount)
+
+    ps = torchaudio.transforms.PitchShift(
+        sig.sample_rate,
+        n_steps=pitch_shift_amount, 
+        bins_per_octave=12, 
+        n_fft=512
+    ) 
+    sig.audio_data = ps(sig.audio_data)
 
     return save_and_return_filepath(sig)
 
