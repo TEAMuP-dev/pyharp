@@ -66,16 +66,25 @@ Our function  will take two arguments:
 - `pitch_shift`: the amount of pitch shift to apply to the audio
 
 ```python
+import torch
+import torchaudio
 from pyharp import save_and_return_filepath
 # Define the process function
+@torch.inference_mode()
 def process_fn(input_audio, pitch_shift_amount):
     from audiotools import AudioSignal
     
     sig = AudioSignal(input_audio)
-    sig.pitch_shift(pitch_shift_amount)
 
-    # return the path to the output file
-    return save_and_return_filepath(sig) 
+    ps = torchaudio.transforms.PitchShift(
+        sig.sample_rate, 
+        n_steps=pitch_shift_amount, 
+        bins_per_octave=12, 
+        n_fft=512
+    ) 
+    sig.audio_data = ps(sig.audio_data)
+
+    return save_and_return_filepath(sig)
 ```
 
 ## Create a Model Card
@@ -136,7 +145,7 @@ demo.launch(share=True)
 Now, we can run our app and test it out. 
 
 ```bash
-python examples/pitch_shifter/pitch_shifter.py
+python examples/pitch_shifter/app.py
 ```
 
 This will create a local Gradio endpoint on `http://localhost:<PORT>`, as well as a forwarded gradio endpoint, with a format like `https://<RANDOM_ID>.gradio.live/`. You can copy that link and enter it in your HARP plugin to use your app in your DAW. 

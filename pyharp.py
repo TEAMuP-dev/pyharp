@@ -1,3 +1,6 @@
+from pathlib import Path
+import shutil
+
 from typing import List
 from dataclasses import dataclass, asdict
 
@@ -60,7 +63,8 @@ def save_and_return_filepath(sig):
     
     output_dir = Path("_outputs")
      # clear the output directory for any previous runs
-    shutil.rmtree(output_dir)
+    if output_dir.is_dir():
+        shutil.rmtree(output_dir)
     output_dir.mkdir(exist_ok=True)
     sig.write(output_dir / "output.wav")
     return sig.path_to_file
