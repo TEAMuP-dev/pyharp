@@ -169,16 +169,21 @@ Note that automatically generated Gradio endpoints are only available for 72 hou
 
 1. Create the space in HuggingFace Spaces
 
-2. Create a repo and add your space link as a remote
+2. Clone the initialized repo locally
 ```bash
-git init
-git remote add origin https://huggingface.co/spaces/<YOUR_USERNAME>/<YOUR_SPACE_NAME>
-git pull
+git clone https://huggingface.co/spaces/<YOUR_USERNAME>/<YOUR_SPACE_NAME>
 ```
 
-3. Add your files to the repo
+3. Add your files to the repo and commit/push
 ```bash
 git add .
 git commit -m "first commit"
-git push -u origin master
+git push -u origin main
 ```
+
+Here are a few tips and best-practices when dealing with HuggingFace Spaces:
+- Spaces operate based off of whatever is in the `main` branch
+- A `requirements.txt` specifying all dependencies must be included for a Space to work properly
+- A `.gitignore` file should be added to maintain orderliness of the repo (_e.g._, to ignore `src`/`_outputs` directories)
+- An [access token](https://huggingface.co/docs/hub/security-tokenshttps://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
+- A `README.md` file with metadata will be created automatically when a Space is initialized
