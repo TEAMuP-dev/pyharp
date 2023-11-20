@@ -187,3 +187,9 @@ Here are a few tips and best-practices when dealing with HuggingFace Spaces:
 - A `.gitignore` file should be added to maintain orderliness of the repo (_e.g._, to ignore `src`/`_outputs` directories)
 - An [access token](https://huggingface.co/docs/hub/security-tokenshttps://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
 - A `README.md` file with metadata will be created automatically when a Space is initialized
+
+
+## Utilizing pre-trained models
+If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
+- Load the model outside of `process_fn`, so that it is not continually re-initialized for each audio file that is processed
+- If model weights must be stored locally (_i.e._, they are not easily accessible through the internet or python packages), save them to your repo using [Git Large File Storage](https://git-lfs.com/)
