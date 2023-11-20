@@ -50,6 +50,8 @@ Here are some of the examples available:
 - [Pitch Shifter](examples/pitch_shifter/)
 - [Harmonic/Percussive Source Separation](examples/harmonic_percussive/)
 
+We also provide a [template](examples/template/) to start building a new endpoint.
+
 # Tutorial: Making a HARP Pitch Shifter.
 
 To make a HARP app, you'll need to write some audio processing code and wrap it using Gradio and PyHARP.
