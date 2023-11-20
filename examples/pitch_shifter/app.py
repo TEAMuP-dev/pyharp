@@ -8,13 +8,13 @@ from pyharp import ModelCard, build_endpoint, save_and_return_filepath
 
 # Define the process function
 @torch.inference_mode()
-def process_fn(input_audio, pitch_shift_amount):
+def process_fn(input_audio_path, pitch_shift_amount):
     from audiotools import AudioSignal
 
     if isinstance(pitch_shift_amount, torch.Tensor):
         pitch_shift_amount = pitch_shift_amount.long().item()
 
-    sig = AudioSignal(input_audio)
+    sig = AudioSignal(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
         sig.sample_rate,
@@ -24,7 +24,9 @@ def process_fn(input_audio, pitch_shift_amount):
     ) 
     sig.audio_data = ps(sig.audio_data)
 
-    return save_and_return_filepath(sig)
+    output_audio_path = save_and_return_filepath(sig)
+
+    return output_audio_path
 
 # Create a ModelCard
 card = ModelCard(

@@ -60,10 +60,12 @@ Create a function that defines the processing logic for your audio model. This c
 
 **NOTE** This function should be a Gradio-compatible processing function, and should thus take the values of some input widgets as arguments. To work with HARP, the function should accept exactly ONE audio input argument + any number of other sliders, texboxes, etc. Additionally, the function should output exactly one audio file. 
 
-For our tutorial, we'll make a pitch shifter. We'll use the [audiotools](https://github.com/descript/descript-audiotools) library. 
-Our function  will take two arguments: 
-- `input_audio`: the audio filepath to be processed
+For our tutorial, we'll make a pitch shifter. We'll use the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)).
+Our function will take two arguments:
+- `input_audio_path`: the audio filepath to be processed
 - `pitch_shift`: the amount of pitch shift to apply to the audio
+and return the following:
+- `output_audio_path`: the filepath of the processed audio
 
 ```python
 import torch
@@ -71,10 +73,10 @@ import torchaudio
 from pyharp import save_and_return_filepath
 # Define the process function
 @torch.inference_mode()
-def process_fn(input_audio, pitch_shift_amount):
+def process_fn(input_audio_path, pitch_shift_amount):
     from audiotools import AudioSignal
     
-    sig = AudioSignal(input_audio)
+    sig = AudioSignal(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
         sig.sample_rate, 
@@ -84,7 +86,9 @@ def process_fn(input_audio, pitch_shift_amount):
     ) 
     sig.audio_data = ps(sig.audio_data)
 
-    return save_and_return_filepath(sig)
+    output_audio_path = save_and_return_filepath(sig)
+
+    return output_audio_path
 ```
 
 ## Create a Model Card
@@ -105,7 +109,7 @@ card = ModelCard(
 
 Now, we'll create a [Gradio](https://www.gradio.app) interface for our processing function, connecting the input and output widgets to the function, and making our processing code accessible via a Gradio // HARP endpoint. 
 
-To achieve this, we'll create a list of Gradio input widgets, as well as an audio output widget, then use the `build_endpoint` function from PyHARP to create a Gradio interface for our processing function. 
+To achieve this, we'll create a list of Gradio input widgets, as well as an audio output widget, then use the `build_endpoint` function from PyHARP to create a Gradio interface for our processing function.
 
 **NOTE**: make sure that the order of your inputs matches the order of the defined arguments in your processing function. 
 
@@ -113,6 +117,8 @@ To achieve this, we'll create a list of Gradio input widgets, as well as an audi
 
 
 ```python
+from pyharp import build_endpoint
+import gradio as gr
 # Build the endpoint
 with gr.Blocks() as demo:
 
@@ -139,6 +145,11 @@ with gr.Blocks() as demo:
 
 demo.launch(share=True)
 ```
+
+Documentation for Gradio widgets can be found [here](https://www.gradio.app/docs/components). Currently, HARP supports the following widgets:
+- [Audio](https://www.gradio.app/docs/audio)
+- [Textbox](https://www.gradio.app/docs/textbox)
+- [Slider](https://www.gradio.app/docs/slider)
 
 ## Run the app
 
