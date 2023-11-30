@@ -32,12 +32,12 @@ def hpss(signal: AudioSignal, **kwargs):
 
 MIN_DB = -120
 
-def process_fn(audio_file, 
+def process_fn(audio_file_path,
                harmonic_db: float, 
                percussive_db: float, 
                kernel_size: int = 31, 
                margin: float = 1.0):
-    sig = AudioSignal(audio_file)
+    sig = AudioSignal(audio_file_path)
     
     harmonic, percussive = hpss(sig, kernel_size=int(kernel_size), margin=margin)
 
@@ -53,7 +53,9 @@ def process_fn(audio_file,
         + percussive.volume_change(clip(percussive_db))
     )
 
-    return save_and_return_filepath(sig)
+    output_audio_path = save_and_return_filepath(sig)
+
+    return output_audio_path
     
 # Create a ModelCard
 card = ModelCard(

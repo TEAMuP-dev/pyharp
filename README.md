@@ -62,10 +62,12 @@ Create a function that defines the processing logic for your audio model. This c
 
 **NOTE** This function should be a Gradio-compatible processing function, and should thus take the values of some input widgets as arguments. To work with HARP, the function should accept exactly ONE audio input argument + any number of other sliders, texboxes, etc. Additionally, the function should output exactly one audio file. 
 
-For our tutorial, we'll make a pitch shifter. We'll use the [audiotools](https://github.com/descript/descript-audiotools) library. 
-Our function  will take two arguments: 
-- `input_audio`: the audio filepath to be processed
+For our tutorial, we'll make a pitch shifter. We'll use the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)).
+Our function will take two arguments:
+- `input_audio_path`: the audio filepath to be processed
 - `pitch_shift`: the amount of pitch shift to apply to the audio
+and return the following:
+- `output_audio_path`: the filepath of the processed audio
 
 ```python
 import torch
@@ -73,10 +75,10 @@ import torchaudio
 from pyharp import save_and_return_filepath
 # Define the process function
 @torch.inference_mode()
-def process_fn(input_audio, pitch_shift_amount):
+def process_fn(input_audio_path, pitch_shift_amount):
     from audiotools import AudioSignal
     
-    sig = AudioSignal(input_audio)
+    sig = AudioSignal(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
         sig.sample_rate, 
@@ -86,7 +88,9 @@ def process_fn(input_audio, pitch_shift_amount):
     ) 
     sig.audio_data = ps(sig.audio_data)
 
-    return save_and_return_filepath(sig)
+    output_audio_path = save_and_return_filepath(sig)
+
+    return output_audio_path
 ```
 
 ## Create a Model Card
@@ -107,7 +111,7 @@ card = ModelCard(
 
 Now, we'll create a [Gradio](https://www.gradio.app) interface for our processing function, connecting the input and output widgets to the function, and making our processing code accessible via a Gradio // HARP endpoint. 
 
-To achieve this, we'll create a list of Gradio input widgets, as well as an audio output widget, then use the `build_endpoint` function from PyHARP to create a Gradio interface for our processing function. 
+To achieve this, we'll create a list of Gradio input widgets, as well as an audio output widget, then use the `build_endpoint` function from PyHARP to create a Gradio interface for our processing function.
 
 **NOTE**: make sure that the order of your inputs matches the order of the defined arguments in your processing function. 
 
@@ -115,6 +119,8 @@ To achieve this, we'll create a list of Gradio input widgets, as well as an audi
 
 
 ```python
+from pyharp import build_endpoint
+import gradio as gr
 # Build the endpoint
 with gr.Blocks() as demo:
 
@@ -142,6 +148,11 @@ with gr.Blocks() as demo:
 demo.launch(share=True)
 ```
 
+Documentation for Gradio widgets can be found [here](https://www.gradio.app/docs/components). Currently, HARP supports the following widgets:
+- [Audio](https://www.gradio.app/docs/audio)
+- [Textbox](https://www.gradio.app/docs/textbox)
+- [Slider](https://www.gradio.app/docs/slider)
+
 ## Run the app
 
 Now, we can run our app and test it out. 
@@ -160,16 +171,27 @@ Note that automatically generated Gradio endpoints are only available for 72 hou
 
 1. Create the space in HuggingFace Spaces
 
-2. Create a repo and add your space link as a remote
+2. Clone the initialized repo locally
 ```bash
-git init
-git remote add origin https://huggingface.co/spaces/<YOUR_USERNAME>/<YOUR_SPACE_NAME>
-git pull
+git clone https://huggingface.co/spaces/<YOUR_USERNAME>/<YOUR_SPACE_NAME>
 ```
 
-3. Add your files to the repo
+3. Add your files to the repo and commit/push
 ```bash
 git add .
 git commit -m "first commit"
-git push -u origin master
+git push -u origin main
 ```
+
+Here are a few tips and best-practices when dealing with HuggingFace Spaces:
+- Spaces operate based off of whatever is in the `main` branch
+- A `requirements.txt` specifying all dependencies must be included for a Space to work properly
+- A `.gitignore` file should be added to maintain orderliness of the repo (_e.g._, to ignore `src`/`_outputs` directories)
+- An [access token](https://huggingface.co/docs/hub/security-tokenshttps://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
+- A `README.md` file with metadata will be created automatically when a Space is initialized
+
+
+## Utilizing pre-trained models
+If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
+- Load the model outside of `process_fn`, so that it is not continually re-initialized for each audio file that is processed
+- If model weights must be stored locally (_i.e._, they are not easily accessible through the internet or python packages), save them to your repo using [Git Large File Storage](https://git-lfs.com/)
