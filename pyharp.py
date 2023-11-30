@@ -174,25 +174,40 @@ def build_endpoint(
         return out
 
     # gradio widget to store the ctrl data
-    ctrls_data = gr.JSON(label="ctrls")
+    ctrls_output = gr.JSON(label="ctrls")
 
     # the endpoint itself
     ctrls_button = gr.Button("(HARP) get_ctrls", visible=visible)
     ctrls_button.click(
         fn=fn, 
         inputs=[], 
-        outputs=ctrls_data,
+        outputs=ctrls_output,
         api_name="wav2wav-ctrls"
     )
 
     process_button = gr.Button("(HARP) process", visible=visible)
-    process_button.click(
+    process_event = process_button.click(
         fn=process_fn, 
         inputs=inputs, 
         outputs=[output],
         api_name="wav2wav"
     )
 
-    return ctrls_data, ctrls_button, process_button
+    # a cancel button to stop processing if the user wants to
+    cancel_button = gr.Button("cancel", visible=visible)
+    cancel_button.click(
+        fn=lambda: None, 
+        inputs=[], 
+        outputs=[],
+        api_name="wav2wav-cancel", 
+        cancels=[process_event]
+    )
+
+    return {
+        "ctrls_output": ctrls_output, 
+        "ctrls_button": ctrls_button,
+        "process_button": process_button, 
+        "cancel_button": cancel_button
+    }
 
 

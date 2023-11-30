@@ -59,6 +59,7 @@ with gr.Blocks() as demo:
     output = gr.Audio(label="Audio Output", type="filepath")
 
     # Build the endpoint
-    ctrls_data, ctrls_button, process_button = build_endpoint(inputs, output, process_fn, card)
+    widgets = build_endpoint(inputs, output, process_fn, card)
 
+demo.queue()
 demo.launch(share=True)

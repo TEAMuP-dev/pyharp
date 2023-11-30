@@ -145,8 +145,11 @@ with gr.Blocks() as demo:
     # Build the endpoint
     ctrls_data, ctrls_button, process_button = build_endpoint(inputs, output, process_fn, card)
 
+demo.queue()  # see the NOTE below
 demo.launch(share=True)
 ```
+**NOTE**: in order for HARP users to be able to cancel an ongoing processing job, you'll need to enable the queueing system in Gradio. This is done by calling `demo.queue()`.
+
 
 Documentation for Gradio widgets can be found [here](https://www.gradio.app/docs/components). Currently, HARP supports the following widgets:
 - [Audio](https://www.gradio.app/docs/audio)
