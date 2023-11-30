@@ -4,7 +4,7 @@ emoji: 🏆
 colorFrom: indigo
 colorTo: gray
 sdk: gradio
-sdk_version: 3.45.1
+sdk_version: 4.7.1
 app_file: app.py
 pinned: false
 license: mit
