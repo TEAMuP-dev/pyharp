@@ -143,7 +143,7 @@ with gr.Blocks() as demo:
     output = gr.Audio(label="Audio Output", type="filepath")
 
     # Build the endpoint
-    ctrls_data, ctrls_button, process_button = build_endpoint(inputs, output, process_fn, card)
+    widgets = build_endpoint(inputs, output, process_fn, card)
 
 demo.queue()  # see the NOTE below
 demo.launch(share=True)
@@ -190,7 +190,7 @@ Here are a few tips and best-practices when dealing with HuggingFace Spaces:
 - Spaces operate based off of whatever is in the `main` branch
 - A `requirements.txt` specifying all dependencies must be included for a Space to work properly
 - A `.gitignore` file should be added to maintain orderliness of the repo (_e.g._, to ignore `src`/`_outputs` directories)
-- An [access token](https://huggingface.co/docs/hub/security-tokenshttps://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
+- An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
 - A `README.md` file with metadata will be created automatically when a Space is initialized
 
 
