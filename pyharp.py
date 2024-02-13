@@ -1,46 +1,63 @@
-from pathlib import Path
-import shutil
-
-from typing import List
+from gradio.components.base import Component
 from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import List
 
 import gradio as gr
+import audiotools
+
+
+__all__ = [
+    'ModelCard',
+    'load_audio',
+    'save_audio',
+    'build_endpoint'
+]
+
 
 @dataclass
-class Ctrl:
+class Control:
     label: str
 
-    def __str__(self) -> str:
-        return f"{self.ctrl_type}({self.label})"
-    
-    def to_dict(self) -> dict:
-        d = asdict(self)
-        d['ctrl_type'] = self.ctrl_type
-        return d
 
 @dataclass
-class SliderCtrl(Ctrl):
+class AudioInControl(Control):
+    ctrl_type: str = "audio_in"
+
+
+# TODO - MidiInCtrl(Ctrl)?
+
+
+@dataclass
+class SliderControl(Control):
     minimum: float
     maximum: float
     step: float
     value: float
     ctrl_type: str = "slider"
 
-    def __str__(self) -> str:
-        return super().__str__() + f"({self.minimum}, {self.maximum}, {self.step}, {self.value})"
 
 @dataclass
-class TextCtrl(Ctrl):
+class TextControl(Control):
     value: str
     ctrl_type: str = "text"
 
-    def __str__(self) -> str:
-        return super().__str__() + f"({self.value})"
+
+@dataclass
+class ToggleControl(Control):
+    value: bool
+    ctrl_type: str = "toggle"
 
 
 @dataclass
-class AudioInCtrl(Ctrl):
-    ctrl_type: str = "audio_in"
+class NumberControl(Control):
+    minimum: float
+    maximum: float
+    value: bool
+    ctrl_type: str = "number_box"
+
+
+# TODO - MidiOutCtrl(Ctrl)?
 
 
 @dataclass
@@ -50,164 +67,184 @@ class ModelCard:
     author: str
     tags: List[str]
 
-    def __str__(self) -> str:
-        return f"ModelCard({self.name}, {self.description}, {self.author}, {self.tags})"
 
-
-def save_and_return_filepath(sig):
+def load_audio(input_audio_path):
     """
-    This function can be used at the end of a process_fn to write the output to a file and return the path.
-
-    Usage of this function is optional. If you don't use you, you must return a filepath string from your process_fn.
-    """
-    
-    output_dir = Path("_outputs")
-     # clear the output directory for any previous runs
-    if output_dir.is_dir():
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(exist_ok=True)
-    sig.write(output_dir / "output.wav")
-    return sig.path_to_file
-
-
-def build_ctrls(inputs: list) -> List[Ctrl]:
-    """Builds a list of Ctrl objects based on Gradio input controls.
+    Loads audio at a specified path using audiotools (Descript).
 
     Args:
-        inputs (list): A list of Gradio input controls.
-            NOTE: The API must contain exactly ONE gr.Audio widget for use as input. It's crucial that the order
-            of inputs matches the order in the Gradio UI to ensure proper alignment when communicating with
-            the HARP client. Currently, HARP supports gr.Slider, gr.Textbox, and gr.Audio widgets as inputs.
-
+        input_audio_path (str): the audio filepath to load.
 
     Returns:
-        List[Ctrl]: A list of Ctrl objects encapsulating the Gradio input controls' metadata.
-
-    Raises:
-        AssertionError: If inputs is not a list.
-        ValueError: If a Gradio input control is not supported.
+        signal (audiotools.AudioSignal): wrapped audio signal.
     """
 
-    assert isinstance(inputs, list), f"inputs must be a list, not {type(inputs)}"
+    signal = audiotools.AudioSignal(input_audio_path)
 
-    ctrls = []
-    for _in in inputs:
-        print(f"processing {_in}")
-        if isinstance(_in, gr.Slider):
-            ctrl = SliderCtrl(
-                minimum=_in.minimum,
-                maximum=_in.maximum,
-                label=_in.label, 
-                value=_in.value, 
-                step=_in.step,
-            )
-        elif isinstance(_in, gr.Audio):
-            assert _in.type == "filepath", f"Audio input must be of type filepath, not {_in.type}"
-            ctrl = AudioInCtrl(
-                label=_in.label
-            )
-        elif isinstance(_in, gr.Textbox):
-            ctrl = TextCtrl(
-                label=_in.label,
-                value=_in.value
-            )
-        else:
-            raise ValueError(
-                f"HARP does not support {_in}. Please remove this control or use an alternative one."
-            )
-        
-        print(f"adding {ctrl}")
-        ctrls.append(ctrl)
-    
-    # check that we have exactly one audio input
-    audio_inputs = [c for c in ctrls if isinstance(c, AudioInCtrl)]
-    if len(audio_inputs) != 1:
-        raise ValueError(
-            f"HARP requires exactly one audio input. You have {len(audio_inputs)}."
-        )
+    return signal
 
-    return ctrls
-    
 
-def build_endpoint(
-        inputs: list, 
-        output: gr.Audio, 
-        process_fn: callable, 
-        card: ModelCard, 
-        visible: bool = True
-    ) -> tuple:
-    """Builds a Gradio endpoint compatible with HARP, facilitating VST3 plugin usage in a DAW.
+def save_audio(signal, output_audio_path=None):
+    """
+    Saves audio to a specified path using audiotools (Descript).
 
     Args:
-        inputs (Union[list]): Gradio input widgets.
-            NOTE: The API must contain exactly ONE gr.Audio widget for use as input. It's crucial that the order
-            of inputs matches the order in the Gradio UI to ensure proper alignment when communicating with
-            the HARP client. Currently, HARP supports gr.Slider, gr.Textbox, and gr.Audio widgets as inputs.
+        signal (audiotools.AudioSignal): wrapped audio signal.
+        output_audio_path (str): the filepath used to save the audio.
 
-        output (gr.Audio): Gradio output audio widget.
-        process_fn (callable): 
+    Returns:
+        output_audio_path (str): the filepath of the saved audio.
+    """
+
+    assert isinstance(signal, audiotools.AudioSignal), "This helper only supports instances of the AudioSignal class."
+
+    if output_audio_path is None:
+        output_dir = Path("_outputs")
+        output_dir.mkdir(exist_ok=True)
+        output_audio_path = output_dir / "output.wav"
+
+    signal.write(output_audio_path)
+
+    return signal.path_to_file
+
+
+def get_control(cmp: Component) -> Control:
+    """
+    Obtain a Ctrl object corresponding to a specified Gradio component.
+
+    Args:
+        cmp (gr.Component): A Gradio input component.
+
+    Returns:
+        ctrl (Control): Corresponding Ctrl object.
+
+    Raises:
+        ValueError: If input component is not supported.
+    """
+
+    if isinstance(cmp, gr.Audio):
+        assert cmp.type == "filepath", f"Audio input must be of type filepath, not {cmp.type}"
+        ctrl = AudioInControl(
+            label=cmp.label
+        )
+    elif isinstance(cmp, gr.Slider):
+        ctrl = SliderControl(
+            minimum=cmp.minimum,
+            maximum=cmp.maximum,
+            label=cmp.label,
+            value=cmp.value,
+            step=cmp.step,
+        )
+    elif isinstance(cmp, gr.Textbox):
+        ctrl = TextControl(
+            label=cmp.label,
+            value=cmp.value
+        )
+    elif isinstance(cmp, gr.Checkbox):
+        ctrl = ToggleControl(
+            label=cmp.label,
+            value=cmp.value
+        )
+    elif isinstance(cmp, gr.Number):
+        ctrl = NumberControl(
+            label=cmp.label,
+            value=cmp.value
+        )
+    else:
+        raise ValueError(
+            f"HARP does not support {cmp}. Please remove this component or use an alternative one."
+        )
+
+    return ctrl
+
+
+def build_endpoint(model_card: ModelCard, components: list, process_fn: callable) -> tuple:
+    """
+    Builds a Gradio endpoint compatible with HARP, facilitating VST3 plugin usage in a DAW.
+
+    Args:
+        model_card (ModelCard): A ModelCard object describing the model.
+        components (Union[list]): Gradio input widgets.
+            NOTE: It's crucial that the order of inputs matches the order in the Gradio UI
+            to ensure proper alignment when communicating with the HARP client. Currently,
+            HARP supports gr.Slider, gr.Textbox, and gr.Audio widgets as inputs.
+        process_fn (callable):
             Function processing the inputs to generate the output.
             The function must accept the inputs in the same order as the inputs list.
             The function must return a filepath string pointing to the output audio file.
-        card (ModelCard): A ModelCard object describing the model.
-        visible (bool, optional): Specifies visibility of the endpoint in the Gradio UI. Defaults to True.
 
     Returns:
-        tuple: A tuple containing: 
-            1. A gr.JSON to store the ctrl data.
-            2. A gr.Button to get the ctrl data.
-            3. A gr.Button to process the input and generate the output.
-
+        app (dict):
+            A dictionary containing:
+                1. A gr.JSON to store the ctrl data.
+                2. A gr.Button to get the ctrl data.
+                3. A gr.Button to process the input and generate the output.
+                4. A gr.Button to cancel processing.
     """
-    # gather a list of ctrls from the Gradio input widgets
-    ctrls = build_ctrls(inputs)
-    assert isinstance(output, gr.Audio), f"output must be a gr.Audio widget, not {type(output)}"
-    assert output.type == "filepath", f"output Audio widget must be of type filepath, not {output.type}"
 
-    # build a callable with no inputs that returns the ctrls and card
-    def fn():
+    # convert Gradio components to simple controls
+    controls = [get_control(cmp) for cmp in components]
+
+    # callable returning card and controls
+    def fetch_model_info():
         out = {
-            "ctrls": [ctrl.to_dict() for ctrl in ctrls], 
-            "card": asdict(card)
+            "card": asdict(model_card),
+            "ctrls": [asdict(ctrl) for ctrl in controls]
         }
-        print(out)
+
         return out
 
-    # gradio widget to store the ctrl data
-    ctrls_output = gr.JSON(label="ctrls")
+    # component to store the control data
+    controls_output = gr.JSON(label="ctrls")
 
-    # the endpoint itself
-    ctrls_button = gr.Button("(HARP) get_ctrls", visible=visible)
-    ctrls_button.click(
-        fn=fn, 
-        inputs=[], 
-        outputs=ctrls_output,
-        api_name="wav2wav-ctrls"
+    # endpoint allowing HARP to fetch model control data
+    controls_button = gr.Button("get_controls", visible=False)
+    controls_button.click(
+        fn=fetch_model_info,
+        inputs=[],
+        outputs=controls_output,
+        api_name="controls"
     )
 
-    process_button = gr.Button("(HARP) process", visible=visible)
+    # main audio file browser
+    main_in = gr.Audio(
+        type='filepath',
+        label='Audio Input'
+    )
+
+    # add input file explorer to components
+    components.insert(0, main_in)
+
+    # main audio file browser
+    out = gr.Audio(
+        type='filepath',
+        label='Audio Output'
+    )
+
+    # process button to begin processing
+    process_button = gr.Button("process")
     process_event = process_button.click(
-        fn=process_fn, 
-        inputs=inputs, 
-        outputs=[output],
-        api_name="wav2wav"
+        fn=process_fn,
+        inputs=components,
+        outputs=[out],
+        api_name="process"
     )
 
-    # a cancel button to stop processing if the user wants to
-    cancel_button = gr.Button("cancel", visible=visible)
+    # cancel button to stop processing
+    cancel_button = gr.Button("cancel")
     cancel_button.click(
-        fn=lambda: None, 
-        inputs=[], 
+        fn=lambda: None,
+        inputs=[],
         outputs=[],
-        api_name="wav2wav-cancel", 
+        api_name="cancel",
         cancels=[process_event]
     )
 
-    return {
-        "ctrls_output": ctrls_output, 
-        "ctrls_button": ctrls_button,
-        "process_button": process_button, 
+    app = {
+        "controls_output": controls_output,
+        "controls_button": controls_button,
+        "process_button": process_button,
         "cancel_button": cancel_button
     }
 
-
+    return app
