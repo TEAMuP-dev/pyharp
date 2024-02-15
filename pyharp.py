@@ -5,12 +5,15 @@ from typing import List
 
 import gradio as gr
 import audiotools
+import symusic
 
 
 __all__ = [
     'ModelCard',
     'load_audio',
     'save_audio',
+    'load_midi',
+    'save_midi',
     'build_endpoint'
 ]
 
@@ -25,7 +28,12 @@ class AudioInControl(Control):
     ctrl_type: str = "audio_in"
 
 
-# TODO - MidiInCtrl(Ctrl)?
+@dataclass
+class MidiInControl(Control):
+    ctrl_type: str = "midi_in"
+
+
+# TODO - MidiOutCtrl(Ctrl)?
 
 
 @dataclass
@@ -57,15 +65,14 @@ class NumberControl(Control):
     ctrl_type: str = "number_box"
 
 
-# TODO - MidiOutCtrl(Ctrl)?
-
-
 @dataclass
 class ModelCard:
     name: str
     description: str
     author: str
     tags: List[str]
+    midi_in: bool = False
+    midi_out: bool = False
 
 
 def load_audio(input_audio_path):
@@ -90,22 +97,64 @@ def save_audio(signal, output_audio_path=None):
 
     Args:
         signal (audiotools.AudioSignal): wrapped audio signal.
-        output_audio_path (str): the filepath used to save the audio.
+        output_audio_path (str): the filepath to use to save the audio.
 
     Returns:
         output_audio_path (str): the filepath of the saved audio.
     """
 
-    assert isinstance(signal, audiotools.AudioSignal), "This helper only supports instances of the AudioSignal class."
+    assert isinstance(signal, audiotools.AudioSignal), "Default loading only supports instances of audiotools.AudioSignal."
 
     if output_audio_path is None:
         output_dir = Path("_outputs")
         output_dir.mkdir(exist_ok=True)
         output_audio_path = output_dir / "output.wav"
+        output_audio_path = output_audio_path.absolute().__str__()
 
     signal.write(output_audio_path)
 
     return signal.path_to_file
+
+
+def load_midi(input_midi_path):
+    """
+    Loads MIDI at a specified path using symusic (https://yikai-liao.github.io/symusic/).
+
+    Args:
+        input_midi_path (str): the MIDI filepath to load.
+
+    Returns:
+        midi (symusic.Score) wrapped midi data.
+    """
+
+    midi = symusic.Score.from_file(input_midi_path)
+
+    return midi
+
+
+def save_midi(midi, output_midi_path=None):
+    """
+    Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
+
+    Args:
+        midi (symusic.Score) wrapped midi data.
+        output_midi_path (str): the filepath to use to save the MIDI.
+
+    Returns:
+        output_midi_path (str): the filepath of the saved MIDI.
+    """
+
+    assert isinstance(midi, symusic.Score), "Default loading only supports instances of symusic.Score."
+
+    if output_midi_path is None:
+        output_dir = Path("_outputs")
+        output_dir.mkdir(exist_ok=True)
+        output_midi_path = output_dir / "output.mid"
+        output_midi_path = output_midi_path.absolute().__str__()
+
+    midi.dump_midi(output_midi_path)
+
+    return output_midi_path
 
 
 def get_control(cmp: Component) -> Control:
@@ -206,20 +255,36 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         api_name="controls"
     )
 
-    # main audio file browser
-    main_in = gr.Audio(
-        type='filepath',
-        label='Audio Input'
-    )
+    if model_card.midi_in:
+        # input MIDI file browser
+        main_in = gr.File(
+            type='filepath',
+            label="Midi Input",
+            file_types=[".mid", ".midi"]
+        )
+    else:
+        # main audio file browser
+        main_in = gr.Audio(
+            type='filepath',
+            label='Audio Input'
+        )
 
     # add input file explorer to components
     components.insert(0, main_in)
 
-    # main audio file browser
-    out = gr.Audio(
-        type='filepath',
-        label='Audio Output'
-    )
+    if model_card.midi_out:
+        # input MIDI file browser
+        out = gr.File(
+            type='filepath',
+            label="Midi Output",
+            file_types=[".mid", ".midi"]
+        )
+    else:
+        # main audio file browser
+        out = gr.Audio(
+            type='filepath',
+            label='Audio Output'
+        )
 
     # process button to begin processing
     process_button = gr.Button("process")

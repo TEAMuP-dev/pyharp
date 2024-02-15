@@ -29,7 +29,6 @@ def process_fn(input_audio_path):
 
     """
     <YOUR AUDIO LOADING CODE HERE>
-
     # Load audio at specified path using audiotools (Descript)
     signal = load_audio(input_audio_path)
     """
