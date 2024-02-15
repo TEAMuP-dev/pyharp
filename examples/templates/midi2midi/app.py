@@ -30,13 +30,13 @@ def process_fn(input_midi_path):
     """
 
     """
-    <YOUR AUDIO LOADING CODE HERE>
+    <YOUR MIDI LOADING CODE HERE>
     # Load MIDI at specified path using symusic
     midi = load_midi(input_midi_path)
     """
 
     """
-    <YOUR AUDIO PROCESSING CODE HERE>
+    <YOUR MIDI PROCESSING CODE HERE>
     # Perform a trivial operation (i.e. pitch-shifting)
     for t in midi.tracks:
         for n in t.notes:
@@ -44,7 +44,7 @@ def process_fn(input_midi_path):
     """
 
     """
-    <YOUR AUDIO SAVING CODE HERE>
+    <YOUR MIDI SAVING CODE HERE>
     # Save processed MIDI and obtain default path
     output_midi_path = save_midi(midi, None)
     """
