@@ -171,12 +171,16 @@ def get_control(cmp: Component) -> Control:
         ValueError: If input component is not supported.
     """
 
-    if isinstance(cmp, gr.Audio):
-        assert cmp.type == "filepath", f"Audio input must be of type filepath, not {cmp.type}"
-        ctrl = AudioInControl(
-            label=cmp.label
-        )
-    elif isinstance(cmp, gr.Slider):
+    # We don't need that anymore
+    # the build_endpoint function will either prepend a gr.Audio or gr.File component
+    # based on the model_card.midi_in attribute
+    # NOTE: the user should not have to include gr.Audio or gr.File components in the components list (app.py)
+    # if isinstance(cmp, gr.Audio):
+    #     assert cmp.type == "filepath", f"Audio input must be of type filepath, not {cmp.type}"
+    #     ctrl = AudioInControl(
+    #         label=cmp.label
+    #     )
+    if isinstance(cmp, gr.Slider):
         ctrl = SliderControl(
             minimum=cmp.minimum,
             maximum=cmp.maximum,
@@ -231,6 +235,24 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
                 4. A gr.Button to cancel processing.
     """
 
+
+    if model_card.midi_in:
+        # input MIDI file browser
+        main_in = gr.File(
+            type='file',
+            label="Midi Input",
+            file_types=[".mid", ".midi"]
+        )
+    else:
+        # main audio file browser
+        main_in = gr.Audio(
+            type='filepath',
+            label='Audio Input'
+        )
+
+    # add input file explorer to components
+    components.insert(0, main_in)
+
     # convert Gradio components to simple controls
     controls = [get_control(cmp) for cmp in components]
 
@@ -254,23 +276,6 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         outputs=controls_output,
         api_name="controls"
     )
-
-    if model_card.midi_in:
-        # input MIDI file browser
-        main_in = gr.File(
-            type='file',
-            label="Midi Input",
-            file_types=[".mid", ".midi"]
-        )
-    else:
-        # main audio file browser
-        main_in = gr.Audio(
-            type='filepath',
-            label='Audio Input'
-        )
-
-    # add input file explorer to components
-    components.insert(0, main_in)
 
     if model_card.midi_out:
         # input MIDI file browser
