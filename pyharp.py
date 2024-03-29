@@ -171,16 +171,17 @@ def get_control(cmp: Component) -> Control:
         ValueError: If input component is not supported.
     """
 
-    # We don't need that anymore
-    # the build_endpoint function will either prepend a gr.Audio or gr.File component
-    # based on the model_card.midi_in attribute
-    # NOTE: the user should not have to include gr.Audio or gr.File components in the components list (app.py)
-    # if isinstance(cmp, gr.Audio):
-    #     assert cmp.type == "filepath", f"Audio input must be of type filepath, not {cmp.type}"
-    #     ctrl = AudioInControl(
-    #         label=cmp.label
-    #     )
-    if isinstance(cmp, gr.Slider):
+    if isinstance(cmp, gr.Audio):
+        assert cmp.type == "filepath", f"Audio input must be of type filepath, not {cmp.type}"
+        ctrl = AudioInControl(
+            label=cmp.label
+        )
+    elif isinstance(cmp, gr.File):
+        assert cmp.type == "file", f"File input must be of type file, not {cmp.type}"
+        ctrl = MidiInControl(
+            label=cmp.label
+        )
+    elif isinstance(cmp, gr.Slider):
         ctrl = SliderControl(
             minimum=cmp.minimum,
             maximum=cmp.maximum,
