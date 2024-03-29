@@ -247,7 +247,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     controls_output = gr.JSON(label="ctrls")
 
     # endpoint allowing HARP to fetch model control data
-    controls_button = gr.Button("get_controls", visible=False)
+    controls_button = gr.Button("get_controls", visible=True)
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
@@ -258,7 +258,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     if model_card.midi_in:
         # input MIDI file browser
         main_in = gr.File(
-            type='filepath',
+            type='file',
             label="Midi Input",
             file_types=[".mid", ".midi"]
         )
@@ -275,7 +275,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     if model_card.midi_out:
         # input MIDI file browser
         out = gr.File(
-            type='filepath',
+            type='file',
             label="Midi Output",
             file_types=[".mid", ".midi"]
         )
