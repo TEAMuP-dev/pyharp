@@ -33,7 +33,7 @@ class MidiInControl(Control):
     ctrl_type: str = "midi_in"
 
 
-# TODO - MidiOutCtrl(Ctrl)?
+# TODO - AudioOutControl / MidiOutControl?
 
 
 @dataclass
@@ -55,6 +55,13 @@ class TextControl(Control):
 class ToggleControl(Control):
     value: bool
     ctrl_type: str = "toggle"
+
+
+@dataclass
+class DropdownControl(Control):
+    choices: List[str]
+    value: str
+    ctrl_type: str = "dropdown"
 
 
 @dataclass
@@ -192,6 +199,12 @@ def get_control(cmp: Component) -> Control:
     elif isinstance(cmp, gr.Checkbox):
         ctrl = ToggleControl(
             label=cmp.label,
+            value=cmp.value
+        )
+    elif isinstance(cmp, gr.Dropdown):
+        ctrl = DropdownControl(
+            label=cmp.label,
+            choices=cmp.choices,
             value=cmp.value
         )
     elif isinstance(cmp, gr.Number):
