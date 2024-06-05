@@ -40,7 +40,16 @@ The app can then be run with `app.py`:
 python examples/pitch_shifter/app.py
 ```
 
-This will create a local Gradio endpoint at `http://localhost:<PORT>`, as well as a forwarded Gradio endpoint at `https://<RANDOM_ID>.gradio.live/`.
+This will create a local Gradio endpoint at the URL `http://localhost:<PORT>`, as well as a forwarded public Gradio endpoint at the URL `https://<RANDOM_ID>.gradio.live/`.
+
+Below, you can see an example command line output after running `app.py`. It shows both the local endpoint (local URL) and the forwarded enpoint (public URL)
+
+![example commandline output for deplying a gradio app.py](images/example_gradio.png)
+
+You can see your Gradio app in HARP by loading either the local URL or public URL as a custom path in HARP, as is shown below.
+
+![example commandline output for deplying a gradio app.py](images/custom_gradio_endpoint_in_harp.png)
+
 
 ## Hosting Endpoints
 Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
