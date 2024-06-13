@@ -75,7 +75,7 @@ Your PyHARP app will then begin running at `https://huggingface.co/spaces/<USERN
 
 Here are a few tips and best-practices when dealing with HuggingFace Spaces:
 - Spaces operate based off of the files in the `main` branch
-- An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
+- An [access token](https://huggingface.co/docs/hub/security-tokens) with "write" permissions may be required to push commits to HuggingFace Spaces
 - A `README.md` file with metadata will be created automatically when a Space is initialized
   - This file also controls the Gradio version used for the Space
   - HARP does not currently support the latest version of Gradio
@@ -146,7 +146,7 @@ The function takes two arguments:
 and returns:
 - `output_audio_path`: the filepath of the processed audio
 
-Note that this code uses the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)).
+Note that this code uses the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation) and documentation [here](https://descriptinc.github.io/audiotools/)).
 
 ## Gradio Endpoint
 The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction), which should include an [Audio](https://www.gradio.app/docs/gradio/audio) component for both the input and output, and launching the endpoint. The `build_endpoint` function connects the components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to include in the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider) and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls.
