@@ -26,7 +26,7 @@ cd pyharp
 ```
 
 ## Examples
-We provide several examples of how to create a PyHARP app under the `examples/` directory, along with a [template](examples/template/) for new apps. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#available-models).
+We provide several examples of how to create a PyHARP app under the `examples/` directory, along with a [template](examples/template/) for new apps. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#models).
 
 In order to run an app, you will need to install its corresponding dependencies. For example, to install the dependences for our [pitch shifter](examples/pitch_shifter/) example:
 
@@ -55,15 +55,18 @@ You can see your Gradio app in HARP by loading either the local URL or public UR
 Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
 
 1. Create a new [HuggingFace Space](https://huggingface.co/new-space)
-2. Clone the initialized repository locally:
+2. Initialize a Git repository locally and push commits to the `main` branch:
 ```bash
-git clone https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>
-```
-3. Add your files to the repository, commit, then push to the `main` branch:
-```bash
+git init
+git checkout -b main
 git add .
-git commit -m "initial commit"
-git push -u origin main
+git commit -m "Initial commit"
+```
+3. Link to the remote HuggingFace space and push to the `main` branch:
+```bash
+git remote add hf "https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>"
+git pull hf main -X ours --allow-unrelated-histories
+git push hf main
 ```
 
 Your PyHARP app will then begin running at `https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>`. The shorthand `<USERNAME>/<SPACE_NAME>` can also be used within HARP to reference the endpoint.

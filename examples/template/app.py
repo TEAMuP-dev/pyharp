@@ -54,9 +54,7 @@ with gr.Blocks() as demo:
             label='Audio Input',
             type='filepath'
         ),
-        """
-        <YOUR UI ELEMENTS HERE>
-        """
+        #<YOUR UI ELEMENTS HERE>
     ]
 
     # Make an output audio widget
