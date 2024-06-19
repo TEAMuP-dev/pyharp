@@ -50,12 +50,19 @@ You can see your Gradio app in HARP by loading either the local URL or public UR
 
 ![example commandline output for deplying a gradio app.py](images/custom_gradio_endpoint_in_harp.png)
 
+To create your own models, copy the template directory and then modify the new `app.py` file, filling in any model initialization, audio loading, processing, and saving code, and UI elements where shown:
+
+```bash
+cp -r examples/template my_model
+cd my_model
+# Open app.py in your preferred editor
+```
 
 ## Hosting Endpoints
 Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
 
 1. Create a new [HuggingFace Space](https://huggingface.co/new-space)
-2. Initialize a Git repository locally and push commits to the `main` branch:
+2. Initialize a Git repository in the directory containing your model and push commits to the `main` branch:
 ```bash
 git init
 git checkout -b main
