@@ -60,8 +60,12 @@ with gr.Blocks() as demo:
     # Make an output audio widget
     output = gr.Audio(label='Audio Output', type='filepath')
 
+    output_text = None
+    # Add output text widget (OPTIONAL)
+    # output_text = gr.Textbox(label='Output text')
+
     # Build the endpoint
-    widgets = build_endpoint(inputs, output, process_fn, card)
+    widgets = build_endpoint(inputs, output, process_fn, card, text_out=output_text)
 
 demo.queue()
 demo.launch(share=True)

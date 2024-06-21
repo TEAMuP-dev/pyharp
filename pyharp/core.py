@@ -134,7 +134,8 @@ def build_endpoint(
         output: gr.Audio, 
         process_fn: callable, 
         card: ModelCard, 
-        visible: bool = True
+        visible: bool = True,
+        text_out: gr.Textbox = None
     ) -> tuple:
     """Builds a Gradio endpoint compatible with HARP, facilitating VST3 plugin usage in a DAW.
 
@@ -189,7 +190,7 @@ def build_endpoint(
     process_event = process_button.click(
         fn=process_fn, 
         inputs=inputs, 
-        outputs=[output],
+        outputs=[output, text_out] if text_out else [output],
         api_name="wav2wav"
     )
 
