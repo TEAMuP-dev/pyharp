@@ -59,7 +59,7 @@ cd my_model
 ```
 
 ## Hosting Endpoints
-Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
+Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely. While you can follow HuggingFace's guidelines to clone their template, we recommend the following procedure instead:
 
 1. Create a new [HuggingFace Space](https://huggingface.co/new-space)
 2. Initialize a Git repository in the directory containing your model and push commits to the `main` branch:
@@ -82,7 +82,7 @@ Your PyHARP app will then begin running at `https://huggingface.co/spaces/<USERN
 
 Here are a few tips and best-practices when dealing with HuggingFace Spaces:
 - Spaces operate based off of the files in the `main` branch
-- An [access token](https://huggingface.co/docs/hub/security-tokens) with "write" permissions may be required to push commits to HuggingFace Spaces
+- An [access token](https://huggingface.co/docs/hub/security-tokens) with "write" permissions is required to push commits to HuggingFace Spaces
 - A `README.md` file with metadata will be created automatically when a Space is initialized
   - This file also controls the Gradio version used for the Space
   - HARP does not currently support the latest version of Gradio
