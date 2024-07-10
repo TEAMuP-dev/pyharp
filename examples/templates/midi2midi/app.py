@@ -1,12 +1,12 @@
-from pyharp import save_midi, load_midi, build_endpoint, ModelCard
+from pyharp import *
 
 import gradio as gr
 
 
 model_card = ModelCard(
-    name='MIDI_PITCH_SHIFTER',
+    name='<APP_NAME>',
     description='<APP_DESCRIPTION>',
-    author='XRIBENE',
+    author='<APP_AUTHOR>',
     tags=['<APP>', '<TAGS>'],
     midi_in=True,
     midi_out=True
@@ -15,7 +15,7 @@ model_card = ModelCard(
 # <YOUR MODEL INITIALIZATION CODE HERE>
 
 
-def process_fn(input_midi, pitch_shift_amount):
+def process_fn(input_midi_path):
     """
     This function defines the MIDI processing steps
 
@@ -29,21 +29,25 @@ def process_fn(input_midi, pitch_shift_amount):
         output_midi_path (str): the filepath of the processed MIDI.
     """
 
-    if hasattr(input_midi, 'name'):
-        input_midi_path = input_midi.name
-    else:
-        input_midi_path = input_midi  # Assuming it's already a path in this case
-
-    print(input_midi_path)
-    # print(input_midi_path_2)
+    """
+    <YOUR MIDI LOADING CODE HERE>
+    # Load MIDI at specified path using symusic
     midi = load_midi(input_midi_path)
+    """
 
+    """
+    <YOUR MIDI PROCESSING CODE HERE>
     # Perform a trivial operation (i.e. pitch-shifting)
     for t in midi.tracks:
         for n in t.notes:
-            n.pitch += int(pitch_shift_amount)
+            n.pitch += 12
+    """
 
+    """
+    <YOUR MIDI SAVING CODE HERE>
+    # Save processed MIDI and obtain default path
     output_midi_path = save_midi(midi, None)
+    """
 
     return output_midi_path
 
@@ -52,13 +56,7 @@ def process_fn(input_midi, pitch_shift_amount):
 with gr.Blocks() as demo:
     # Define Gradio Components
     components = [
-        gr.Slider(
-            minimum=-24, 
-            maximum=24, 
-            step=1, 
-            value=7, 
-            label="Pitch Shift (semitones)"
-        ),
+        # <YOUR UI ELEMENTS HERE>
     ]
 
     # Build endpoint
