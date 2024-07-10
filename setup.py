@@ -8,5 +8,5 @@ setup(
     author_email='hugofloresgarcia@u.northwestern.edu',
     description='',
     packages=find_packages(),    
-    install_requires=['gradio<4.0']
+    install_requires=['gradio>4.0']
 )

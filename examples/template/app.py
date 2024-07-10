@@ -66,4 +66,4 @@ with gr.Blocks() as demo:
     widgets = build_endpoint(inputs, output, process_fn, card)
 
 demo.queue()
-demo.launch(share=True)
+demo.launch(share=True, show_error=True)
