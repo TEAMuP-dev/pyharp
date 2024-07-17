@@ -1,3 +1,4 @@
+gradio
+descript-audiotools
+symusic
 -e git+https://github.com/audacitorch/pyharp.git#egg=pyharp
-torch
-torchaudio
