@@ -176,8 +176,8 @@ def get_control(cmp: Component) -> Control:
         ctrl = AudioInControl(
             label=cmp.label
         )
-    elif isinstance(cmp, gr.File):
-        assert cmp.type == "file", f"File input must be of type file, not {cmp.type}"
+    elif isinstance(cmp, gr.File) and ('.mid' in cmp.file_types or '.midi' in cmp.file_types):
+        assert cmp.type == "filepath", f"File input must be of type filepath, not {cmp.type}"
         ctrl = MidiInControl(
             label=cmp.label
         )
@@ -206,7 +206,7 @@ def get_control(cmp: Component) -> Control:
         )
     else:
         raise ValueError(
-            f"HARP does not support {cmp}. Please remove this component or use an alternative one."
+            f"HARP does not support provided {cmp} component. Please remove it or use an alternative."
         )
 
     return ctrl
@@ -236,16 +236,15 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
                 4. A gr.Button to cancel processing.
     """
 
-
     if model_card.midi_in:
         # input MIDI file browser
         main_in = gr.File(
-            type='file',
+            type='filepath',
             label="Midi Input",
             file_types=[".mid", ".midi"]
         )
     else:
-        # main audio file browser
+        # input audio file browser
         main_in = gr.Audio(
             type='filepath',
             label='Audio Input'
@@ -279,14 +278,14 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     )
 
     if model_card.midi_out:
-        # input MIDI file browser
+        # output MIDI file browser
         out = gr.File(
-            type='file',
+            type='filepath',
             label="Midi Output",
             file_types=[".mid", ".midi"]
         )
     else:
-        # main audio file browser
+        # output audio file browser
         out = gr.Audio(
             type='filepath',
             label='Audio Output'
