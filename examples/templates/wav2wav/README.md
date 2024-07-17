@@ -1,5 +1,5 @@
 ---
-title: Midi2Midi Template
+title: Wav2Wav Template
 emoji: 🏆
 colorFrom: indigo
 colorTo: gray

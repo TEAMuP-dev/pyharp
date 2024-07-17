@@ -121,10 +121,6 @@ import torch
 
 @torch.inference_mode()
 def process_fn(input_audio_path, pitch_shift_amount):
-
-    if isinstance(pitch_shift_amount, torch.Tensor):
-        pitch_shift_amount = pitch_shift_amount.long().item()
-
     sig = load_audio(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
