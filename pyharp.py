@@ -33,9 +33,6 @@ class MidiInControl(Control):
     ctrl_type: str = "midi_in"
 
 
-# TODO - AudioOutControl / MidiOutControl?
-
-
 @dataclass
 class SliderControl(Control):
     minimum: float
@@ -279,15 +276,16 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         return out
 
     # component to store the control data
-    controls_output = gr.JSON(label="ctrls")
+    controls_output = gr.JSON(label="Controls")
 
     # endpoint allowing HARP to fetch model control data
-    controls_button = gr.Button("get_controls", visible=True)
+    controls_button = gr.Button("View Controls", visible=True)
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
         outputs=controls_output,
-        api_name="controls"
+        #api_name="controls" TODO - better naming scheme (breaking change)
+        api_name="wav2wav-ctrls"
     )
 
     if model_card.midi_out:
@@ -305,21 +303,23 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         )
 
     # process button to begin processing
-    process_button = gr.Button("process")
+    process_button = gr.Button("Process")
     process_event = process_button.click(
         fn=process_fn,
         inputs=components,
         outputs=[out],
-        api_name="process"
+        #api_name="process" TODO - better naming scheme (breaking change)
+        api_name="wav2wav"
     )
 
     # cancel button to stop processing
-    cancel_button = gr.Button("cancel")
+    cancel_button = gr.Button("Cancel")
     cancel_button.click(
         fn=lambda: None,
         inputs=[],
         outputs=[],
-        api_name="cancel",
+        #api_name="cancel" TODO - better naming scheme (breaking change)
+        api_name="wav2wav-cancel",
         cancels=[process_event]
     )
 
