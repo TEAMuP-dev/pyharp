@@ -183,6 +183,11 @@ def get_control(cmp: Component) -> Control:
         ctrl = AudioInControl(
             label=cmp.label
         )
+    elif isinstance(cmp, gr.File) and ('.mid' in cmp.file_types or '.midi' in cmp.file_types):
+        assert cmp.type == "filepath", f"File input must be of type filepath, not {cmp.type}"
+        ctrl = MidiInControl(
+            label=cmp.label
+        )
     elif isinstance(cmp, gr.Slider):
         ctrl = SliderControl(
             minimum=cmp.minimum,
@@ -214,7 +219,7 @@ def get_control(cmp: Component) -> Control:
         )
     else:
         raise ValueError(
-            f"HARP does not support {cmp}. Please remove this component or use an alternative one."
+            f"HARP does not support provided {cmp} component. Please remove it or use an alternative."
         )
 
     return ctrl
@@ -244,6 +249,23 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
                 4. A gr.Button to cancel processing.
     """
 
+    if model_card.midi_in:
+        # input MIDI file browser
+        main_in = gr.File(
+            type='filepath',
+            label="Midi Input",
+            file_types=[".mid", ".midi"]
+        )
+    else:
+        # input audio file browser
+        main_in = gr.Audio(
+            type='filepath',
+            label='Audio Input'
+        )
+
+    # add input file explorer to components
+    components.insert(0, main_in)
+
     # convert Gradio components to simple controls
     controls = [get_control(cmp) for cmp in components]
 
@@ -260,7 +282,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     controls_output = gr.JSON(label="ctrls")
 
     # endpoint allowing HARP to fetch model control data
-    controls_button = gr.Button("get_controls", visible=False)
+    controls_button = gr.Button("get_controls", visible=True)
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
@@ -268,32 +290,15 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         api_name="controls"
     )
 
-    if model_card.midi_in:
-        # input MIDI file browser
-        main_in = gr.File(
-            type='filepath',
-            label="Midi Input",
-            file_types=[".mid", ".midi"]
-        )
-    else:
-        # main audio file browser
-        main_in = gr.Audio(
-            type='filepath',
-            label='Audio Input'
-        )
-
-    # add input file explorer to components
-    components.insert(0, main_in)
-
     if model_card.midi_out:
-        # input MIDI file browser
+        # output MIDI file browser
         out = gr.File(
             type='filepath',
             label="Midi Output",
             file_types=[".mid", ".midi"]
         )
     else:
-        # main audio file browser
+        # output audio file browser
         out = gr.Audio(
             type='filepath',
             label='Audio Output'
