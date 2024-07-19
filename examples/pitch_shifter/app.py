@@ -1,20 +1,17 @@
-import torch
-import torchaudio 
+from pyharp import *
 
-from pathlib import Path
 import gradio as gr
-import shutil
-from pyharp import ModelCard, build_endpoint, save_and_return_filepath
+import torchaudio
+import torch
 
 # Define the process function
 @torch.inference_mode()
 def process_fn(input_audio_path, pitch_shift_amount):
-    from audiotools import AudioSignal
 
     if isinstance(pitch_shift_amount, torch.Tensor):
         pitch_shift_amount = pitch_shift_amount.long().item()
 
-    sig = AudioSignal(input_audio_path)
+    sig = load_audio(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
         sig.sample_rate,
@@ -24,28 +21,25 @@ def process_fn(input_audio_path, pitch_shift_amount):
     ) 
     sig.audio_data = ps(sig.audio_data)
 
-    output_audio_path = save_and_return_filepath(sig)
+    output_audio_path = save_audio(sig)
 
     return output_audio_path
 
 # Create a ModelCard
-card = ModelCard(
+model_card = ModelCard(
     name="Pitch Shifter",
     description="A pitch shifting example for HARP.",
     author="Hugo Flores Garcia",
-    tags=["example", "pitch shift"]
+    tags=["example", "pitch shift"],
+    midi_in=False,
+    midi_out=False
 )
 
 
 # Build the endpoint
 with gr.Blocks() as demo:
-
     # Define your Gradio interface
-    inputs = [
-        gr.Audio(
-            label="Audio Input", 
-            type="filepath"
-        ), # make sure to have an audio input with type="filepath"!
+    components = [
         gr.Slider(
             minimum=-24, 
             maximum=24, 
@@ -54,12 +48,10 @@ with gr.Blocks() as demo:
             label="Pitch Shift (semitones)"
         ),
     ]
-    
-    # make an output audio widget
-    output = gr.Audio(label="Audio Output", type="filepath")
 
-    # Build the endpoint
-    widgets = build_endpoint(inputs, output, process_fn, card)
+    app = build_endpoint(model_card=model_card,
+                         components=components,
+                         process_fn=process_fn)
 
 demo.queue()
 demo.launch(share=True)
