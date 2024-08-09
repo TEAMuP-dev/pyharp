@@ -65,4 +65,4 @@ with gr.Blocks() as demo:
                          process_fn=process_fn)
 
 demo.queue()
-demo.launch(share=True)
+demo.launch(share=True, show_error=True)
