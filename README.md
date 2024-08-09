@@ -94,11 +94,13 @@ The following processing code corresponds to our [pitch shifter](examples/pitch_
 from pyharp import ModelCard
 
 
-card = ModelCard(
+model_card = ModelCard(
     name="Pitch Shifter",
     description="A pitch shifting example for HARP.",
     author="Hugo Flores Garcia",
-    tags=["example", "pitch shift"]
+    tags=["example", "pitch shift"],
+    midi_in=False,
+    midi_out=False
 )
 ```
 
@@ -111,7 +113,7 @@ This could be a source separation model, a text-to-music generation model, a mus
 
 The following processing code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
-from pyharp import save_and_return_filepath
+from pyharp import load_audio, save_audio
 
 import torchaudio
 import torch
@@ -119,19 +121,17 @@ import torch
 
 @torch.inference_mode()
 def process_fn(input_audio_path, pitch_shift_amount):
-    from audiotools import AudioSignal
-    
-    sig = AudioSignal(input_audio_path)
+    sig = load_audio(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
-        sig.sample_rate, 
+        sig.sample_rate,
         n_steps=pitch_shift_amount, 
         bins_per_octave=12, 
         n_fft=512
     ) 
     sig.audio_data = ps(sig.audio_data)
 
-    output_audio_path = save_and_return_filepath(sig)
+    output_audio_path = save_audio(sig)
 
     return output_audio_path
 ```
@@ -157,11 +157,7 @@ import gradio as gr
 
 with gr.Blocks() as demo:
     # Define the Gradio interface
-    inputs = [
-        gr.Audio(
-            label="Audio Input", 
-            type="filepath" # make sure type="filepath"!
-        ),
+    components = [
         gr.Slider(
             minimum=-24, 
             maximum=24, 
@@ -170,12 +166,11 @@ with gr.Blocks() as demo:
             label="Pitch Shift (semitones)"
         ),
     ]
-    
-    # Initialize an audio component for the output
-    output = gr.Audio(label="Audio Output", type="filepath")
 
     # Build a HARP-compatible endpoint
-    widgets = build_endpoint(inputs, output, process_fn, card)
+    app = build_endpoint(model_card=model_card,
+                         components=components,
+                         process_fn=process_fn)
 
 demo.queue()  # see the NOTE below
 demo.launch(share=True)

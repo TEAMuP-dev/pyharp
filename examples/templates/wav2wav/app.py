@@ -1,17 +1,16 @@
-from pyharp import ModelCard, build_endpoint, save_and_return_filepath
-from audiotools import AudioSignal
+from pyharp import *
 
 import gradio as gr
 
 
-card = ModelCard(
+model_card = ModelCard(
     name='<APP_NAME>',
     description='<APP_DESCRIPTION>',
     author='<APP_AUTHOR>',
     tags=['<APP>', '<TAGS>']
 )
 
-"""<YOUR MODEL INITIALIZATION CODE HERE>"""
+# <YOUR MODEL INITIALIZATION CODE HERE>
 
 
 def process_fn(input_audio_path):
@@ -30,40 +29,36 @@ def process_fn(input_audio_path):
 
     """
     <YOUR AUDIO LOADING CODE HERE>
+    # Load audio at specified path using audiotools (Descript)
+    signal = load_audio(input_audio_path)
     """
-    #sig = AudioSignal(input_audio_path)
 
     """
     <YOUR AUDIO PROCESSING CODE HERE>
+    # Perform a trivial operation (i.e. boosting)
+    signal.audio_data = 2 * signal.audio_data
     """
-    #sig.audio_data = 2 * sig.audio_data
 
     """
     <YOUR AUDIO SAVING CODE HERE>
+    # Save processed audio and obtain default path
+    output_audio_path = save_audio(signal, None)
     """
-    #output_audio_path = save_and_return_filepath(sig)
 
     return output_audio_path
 
 
-# Build the Gradio endpoint
+# Build Gradio endpoint
 with gr.Blocks() as demo:
-    # Define widgets
-    inputs = [
-        gr.Audio(
-            label='Audio Input',
-            type='filepath'
-        ),
-        """
-        <YOUR UI ELEMENTS HERE>
-        """
+    # Define Gradio Components
+    components = [
+        # <YOUR UI ELEMENTS HERE>
     ]
 
-    # Make an output audio widget
-    output = gr.Audio(label='Audio Output', type='filepath')
-
-    # Build the endpoint
-    widgets = build_endpoint(inputs, output, process_fn, card)
+    # Build endpoint
+    app = build_endpoint(model_card=model_card,
+                         components=components,
+                         process_fn=process_fn)
 
 demo.queue()
 demo.launch(share=True, show_error=True)

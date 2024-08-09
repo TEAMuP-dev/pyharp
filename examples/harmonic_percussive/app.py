@@ -1,12 +1,9 @@
-from typing import Dict
-from pathlib import Path
-
-import librosa
-import torch
 from audiotools import AudioSignal
+from pyharp import *
 
 import gradio as gr
-from pyharp import ModelCard, build_endpoint, save_and_return_filepath
+import librosa
+import torch
 
 
 def hpss(signal: AudioSignal, **kwargs):
@@ -37,7 +34,7 @@ def process_fn(audio_file_path,
                percussive_db: float, 
                kernel_size: int = 31, 
                margin: float = 1.0):
-    sig = AudioSignal(audio_file_path)
+    sig = load_audio(audio_file_path)
     
     harmonic, percussive = hpss(sig, kernel_size=int(kernel_size), margin=margin)
 
@@ -53,12 +50,12 @@ def process_fn(audio_file_path,
         + percussive.volume_change(clip(percussive_db))
     )
 
-    output_audio_path = save_and_return_filepath(sig)
+    output_audio_path = save_audio(sig, None)
 
     return output_audio_path
     
 # Create a ModelCard
-card = ModelCard(
+model_card = ModelCard(
     name="Harmonic / Percussive Separation",
     description="Remix a Track into its harmonic and percussive components.",
     author="Hugo Flores Garcia",
@@ -69,11 +66,7 @@ card = ModelCard(
 # Build the endpoint
 with gr.Blocks() as demo:
     # Define your Gradio interface
-    inputs = [
-        gr.Audio(
-            label="Audio Input", 
-            type="filepath"
-        ), 
+    components = [
         gr.Slider(
             minimum=MIN_DB, maximum=24, 
             step=1, value=0, 
@@ -95,12 +88,11 @@ with gr.Blocks() as demo:
             label="Margin"
         ),
     ]
-    
-    # make an output audio widget
-    output = gr.Audio(label="Audio Output", type="filepath")
 
     # Build the endpoint
-    widgets = build_endpoint(inputs, output, process_fn, card)
+    app = build_endpoint(model_card=model_card,
+                         components=components,
+                         process_fn=process_fn)
 
 demo.queue()
 demo.launch(share=True, show_error=True)

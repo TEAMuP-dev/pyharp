@@ -1,4 +1,3 @@
+-e git+https://github.com/TEAMuP-dev/pyharp.git#egg=pyharp
 torch
 torchaudio
-descript-audiotools
--e git+https://github.com/TEAMuP-dev/pyharp.git#egg=pyharp

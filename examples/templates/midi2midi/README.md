@@ -1,5 +1,5 @@
 ---
-title: Template
+title: Midi2Midi Template
 emoji: 🏆
 colorFrom: indigo
 colorTo: gray
