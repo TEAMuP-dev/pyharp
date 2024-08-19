@@ -14,7 +14,9 @@ __all__ = [
     'save_audio',
     'load_midi',
     'save_midi',
-    'build_endpoint'
+    'get_tick_time_in_seconds',
+    'build_endpoint',
+    'OutputLabel'
 ]
 
 
@@ -67,6 +69,19 @@ class NumberControl(Control):
     maximum: float
     value: bool
     ctrl_type: str = "number_box"
+
+
+@dataclass
+class OutputLabel:
+    label: str
+    t: float
+    y: float = None
+    duration: float = 0.0
+    description: str = None
+
+    def __post_init__(self):
+        if self.description is None:
+            self.description = self.label
 
 
 @dataclass
@@ -128,7 +143,7 @@ def load_midi(input_midi_path):
         input_midi_path (str): the MIDI filepath to load.
 
     Returns:
-        midi (symusic.Score) wrapped midi data.
+        midi (symusic.Score): wrapped midi data.
     """
 
     midi = symusic.Score.from_file(input_midi_path)
@@ -141,7 +156,7 @@ def save_midi(midi, output_midi_path=None):
     Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
 
     Args:
-        midi (symusic.Score) wrapped midi data.
+        midi (symusic.Score): wrapped midi data.
         output_midi_path (str): the filepath to use to save the MIDI.
 
     Returns:
@@ -159,6 +174,55 @@ def save_midi(midi, output_midi_path=None):
     midi.dump_midi(output_midi_path)
 
     return output_midi_path
+
+
+def ticks_to_seconds(ticks, tempo, ticks_per_quarter):
+    """
+    Compute the absolute time corresponding to a tick duration.
+
+    Args:
+        ticks (int): duration in ticks.
+        tempo (float): tempo in beats per minute.
+        ticks_per_quarter (int): number of ticks for one quarter beat.
+
+    Returns:
+        seconds (float): duration in seconds.
+    """
+
+    #seconds per beat times number of quarter beats
+    seconds = (60 / tempo) * ticks / ticks_per_quarter
+
+    return seconds
+
+
+def get_tick_time_in_seconds(tick, midi):
+    """
+    Determine the absolute time corresponding to a given tick.
+
+    Args:
+        tick (int): tick to convert to seconds.
+        midi (symusic.Score): wrapped midi data.
+
+    Returns:
+        time (float): absolute time in seconds.
+    """
+
+    time, ticks_elapsed = 0.0, 0
+
+    for i in range(len(midi.tempos)):
+        tick_duration = tick - ticks_elapsed
+
+        if tick_duration <= 0:
+            break
+
+        if i != len(midi.tempos) - 1:
+            tick_duration = min(tick_duration, midi.tempos[i + 1].time - ticks_elapsed)
+
+        ticks_elapsed += tick_duration
+
+        time += ticks_to_seconds(tick_duration, midi.tempos[i].qpm, midi.ticks_per_quarter)
+
+    return time
 
 
 def get_control(cmp: Component) -> Control:
@@ -240,74 +304,77 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     Returns:
         app (dict):
             A dictionary containing:
-                1. A gr.JSON to store the ctrl data.
-                2. A gr.Button to get the ctrl data.
+                1. A gr.JSON to store the control data.
+                2. A gr.Button to get the control data.
                 3. A gr.Button to process the input and generate the output.
                 4. A gr.Button to cancel processing.
     """
 
     if model_card.midi_in:
         # input MIDI file browser
-        main_in = gr.File(
+        media_in = gr.File(
             type='filepath',
-            label="Midi Input",
+            label="Input Midi",
             file_types=[".mid", ".midi"]
         )
     else:
         # input audio file browser
-        main_in = gr.Audio(
+        media_in = gr.Audio(
             type='filepath',
-            label='Audio Input'
+            label='Input Audio'
         )
 
     # add input file explorer to components
-    components.insert(0, main_in)
+    components.insert(0, media_in)
 
     # convert Gradio components to simple controls
     controls = [get_control(cmp) for cmp in components]
 
     # callable returning card and controls
     def fetch_model_info():
-        out = {
+        data = {
             "card": asdict(model_card),
             "ctrls": [asdict(ctrl) for ctrl in controls]
         }
 
-        return out
+        return data
 
     # component to store the control data
-    controls_output = gr.JSON(label="Controls")
+    controls_data = gr.JSON(label="Controls Data")
 
     # endpoint allowing HARP to fetch model control data
     controls_button = gr.Button("View Controls", visible=True)
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
-        outputs=controls_output,
+        outputs=controls_data,
         #api_name="controls" TODO - better naming scheme (breaking change)
         api_name="wav2wav-ctrls"
     )
 
     if model_card.midi_out:
         # output MIDI file browser
-        out = gr.File(
+        media_out = gr.File(
             type='filepath',
-            label="Midi Output",
+            label="Output Midi",
             file_types=[".mid", ".midi"]
         )
     else:
         # output audio file browser
-        out = gr.Audio(
+        media_out = gr.Audio(
             type='filepath',
-            label='Audio Output'
+            label='Output Audio'
         )
+
+    # component to store the labels data
+    output_labels = gr.JSON(label="Output Labels")
 
     # process button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
         fn=process_fn,
         inputs=components,
-        outputs=[out],
+        outputs=[media_out, output_labels],
         #api_name="process" TODO - better naming scheme (breaking change)
         api_name="wav2wav"
     )
@@ -324,7 +391,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     )
 
     app = {
-        "controls_output": controls_output,
+        "controls_data": controls_data,
         "controls_button": controls_button,
         "process_button": process_button,
         "cancel_button": cancel_button

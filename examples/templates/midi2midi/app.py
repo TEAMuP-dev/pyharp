@@ -27,12 +27,27 @@ def process_fn(input_midi_path):
 
     Returns:
         output_midi_path (str): the filepath of the processed MIDI.
+        output_labels (list of OutputLabel): any labels to display.
     """
 
     """
     <YOUR MIDI LOADING CODE HERE>
     # Load MIDI at specified path using symusic
     midi = load_midi(input_midi_path)
+    """
+
+    """
+    <YOUR LABELING CODE HERE>
+    # Initialize empty list
+    output_labels = list()
+
+    # Create a label for each note
+    for t in midi.tracks:
+        for n in t.notes:
+            start = get_tick_time_in_seconds(n.time, midi)
+            duration = get_tick_time_in_seconds(n.time + n.duration, midi)
+
+            output_labels.append(OutputLabel(label=f'Note {n.pitch}', t=start, y=n.pitch, duration=duration))
     """
 
     """
@@ -49,7 +64,7 @@ def process_fn(input_midi_path):
     output_midi_path = save_midi(midi, None)
     """
 
-    return output_midi_path
+    return output_midi_path, output_labels
 
 
 # Build Gradio endpoint

@@ -25,6 +25,7 @@ def process_fn(input_audio_path):
 
     Returns:
         output_audio_path (str): the filepath of the processed audio.
+        output_labels (list of OutputLabel): any labels to display.
     """
 
     """
@@ -45,7 +46,13 @@ def process_fn(input_audio_path):
     output_audio_path = save_audio(signal, None)
     """
 
-    return output_audio_path
+    """
+    <YOUR LABELING CODE HERE>
+    # No output labels
+    output_labels = list()
+    """
+
+    return output_audio_path, output_labels
 
 
 # Build Gradio endpoint
