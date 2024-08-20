@@ -348,8 +348,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         fn=fetch_model_info,
         inputs=[],
         outputs=controls_data,
-        #api_name="controls" TODO - better naming scheme (breaking change)
-        api_name="wav2wav-ctrls"
+        api_name="controls"
     )
 
     if model_card.midi_out:
@@ -375,8 +374,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         fn=process_fn,
         inputs=components,
         outputs=[media_out, output_labels],
-        #api_name="process" TODO - better naming scheme (breaking change)
-        api_name="wav2wav"
+        api_name="process"
     )
 
     # cancel button to stop processing
@@ -385,8 +383,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         fn=lambda: None,
         inputs=[],
         outputs=[],
-        #api_name="cancel" TODO - better naming scheme (breaking change)
-        api_name="wav2wav-cancel",
+        api_name="cancel",
         cancels=[process_event]
     )
 

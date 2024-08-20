@@ -52,7 +52,10 @@ def process_fn(audio_file_path,
 
     output_audio_path = save_audio(sig, None)
 
-    return output_audio_path
+    # No output labels
+    output_labels = list()
+
+    return output_audio_path, output_labels
     
 # Create a ModelCard
 model_card = ModelCard(

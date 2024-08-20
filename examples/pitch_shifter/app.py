@@ -23,7 +23,10 @@ def process_fn(input_audio_path, pitch_shift_amount):
 
     output_audio_path = save_audio(sig)
 
-    return output_audio_path
+    # No output labels
+    output_labels = list()
+
+    return output_audio_path, output_labels
 
 # Create a ModelCard
 model_card = ModelCard(
