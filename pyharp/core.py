@@ -276,7 +276,7 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         return out
 
     # component to store the control data
-    controls_output = gr.JSON(label="Controls")
+    controls_output = gr.Text(label="Controls")
 
     # endpoint allowing HARP to fetch model control data
     controls_button = gr.Button("View Controls", visible=True)
