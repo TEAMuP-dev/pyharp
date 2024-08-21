@@ -3,6 +3,7 @@ __pycache__
 _outputs
 .DS_Store
 .idea
+.vscode
 
 examples/**/.git/
 examples/MusicGen
