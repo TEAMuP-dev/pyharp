@@ -1,23 +1,24 @@
 from gradio.components.base import Component
 from dataclasses import dataclass, asdict
-from pathlib import Path
 from typing import List
 
 import gradio as gr
-import audiotools
-import symusic
 
 
 __all__ = [
     'ModelCard',
-    'load_audio',
-    'save_audio',
-    'load_midi',
-    'save_midi',
-    'get_tick_time_in_seconds',
-    'build_endpoint',
-    'OutputLabel'
+    'build_endpoint'
 ]
+
+
+@dataclass
+class ModelCard:
+    name: str
+    description: str
+    author: str
+    tags: List[str]
+    midi_in: bool = False
+    midi_out: bool = False
 
 
 @dataclass
@@ -69,160 +70,6 @@ class NumberControl(Control):
     maximum: float
     value: bool
     ctrl_type: str = "number_box"
-
-
-@dataclass
-class OutputLabel:
-    label: str
-    t: float
-    y: float = None
-    duration: float = 0.0
-    description: str = None
-
-    def __post_init__(self):
-        if self.description is None:
-            self.description = self.label
-
-
-@dataclass
-class ModelCard:
-    name: str
-    description: str
-    author: str
-    tags: List[str]
-    midi_in: bool = False
-    midi_out: bool = False
-
-
-def load_audio(input_audio_path):
-    """
-    Loads audio at a specified path using audiotools (Descript).
-
-    Args:
-        input_audio_path (str): the audio filepath to load.
-
-    Returns:
-        signal (audiotools.AudioSignal): wrapped audio signal.
-    """
-
-    signal = audiotools.AudioSignal(input_audio_path)
-
-    return signal
-
-
-def save_audio(signal, output_audio_path=None):
-    """
-    Saves audio to a specified path using audiotools (Descript).
-
-    Args:
-        signal (audiotools.AudioSignal): wrapped audio signal.
-        output_audio_path (str): the filepath to use to save the audio.
-
-    Returns:
-        output_audio_path (str): the filepath of the saved audio.
-    """
-
-    assert isinstance(signal, audiotools.AudioSignal), "Default loading only supports instances of audiotools.AudioSignal."
-
-    if output_audio_path is None:
-        output_dir = Path("_outputs")
-        output_dir.mkdir(exist_ok=True)
-        output_audio_path = output_dir / "output.wav"
-        output_audio_path = output_audio_path.absolute().__str__()
-
-    signal.write(output_audio_path)
-
-    return signal.path_to_file
-
-
-def load_midi(input_midi_path):
-    """
-    Loads MIDI at a specified path using symusic (https://yikai-liao.github.io/symusic/).
-
-    Args:
-        input_midi_path (str): the MIDI filepath to load.
-
-    Returns:
-        midi (symusic.Score): wrapped midi data.
-    """
-
-    midi = symusic.Score.from_file(input_midi_path)
-
-    return midi
-
-
-def save_midi(midi, output_midi_path=None):
-    """
-    Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
-
-    Args:
-        midi (symusic.Score): wrapped midi data.
-        output_midi_path (str): the filepath to use to save the MIDI.
-
-    Returns:
-        output_midi_path (str): the filepath of the saved MIDI.
-    """
-
-    assert isinstance(midi, symusic.Score), "Default loading only supports instances of symusic.Score."
-
-    if output_midi_path is None:
-        output_dir = Path("_outputs")
-        output_dir.mkdir(exist_ok=True)
-        output_midi_path = output_dir / "output.mid"
-        output_midi_path = output_midi_path.absolute().__str__()
-
-    midi.dump_midi(output_midi_path)
-
-    return output_midi_path
-
-
-def ticks_to_seconds(ticks, tempo, ticks_per_quarter):
-    """
-    Compute the absolute time corresponding to a tick duration.
-
-    Args:
-        ticks (int): duration in ticks.
-        tempo (float): tempo in beats per minute.
-        ticks_per_quarter (int): number of ticks for one quarter beat.
-
-    Returns:
-        seconds (float): duration in seconds.
-    """
-
-    #seconds per beat times number of quarter beats
-    seconds = (60 / tempo) * ticks / ticks_per_quarter
-
-    return seconds
-
-
-def get_tick_time_in_seconds(tick, midi):
-    """
-    Determine the absolute time corresponding to a given tick.
-
-    Args:
-        tick (int): tick to convert to seconds.
-        midi (symusic.Score): wrapped midi data.
-
-    Returns:
-        time (float): absolute time in seconds.
-    """
-
-    time, ticks_elapsed = 0.0, 0
-
-    for i in range(len(midi.tempos)):
-        tick_duration = tick - ticks_elapsed
-
-        if tick_duration <= 0:
-            break
-
-        if i != len(midi.tempos) - 1:
-            tick_duration = min(tick_duration, midi.tempos[i + 1].time - ticks_elapsed)
-
-        ticks_elapsed += tick_duration
-
-        time += ticks_to_seconds(tick_duration, midi.tempos[i].qpm, midi.ticks_per_quarter)
-
-    return time
 
 
 def get_control(cmp: Component) -> Control:

@@ -47,7 +47,7 @@ def process_fn(input_midi_path):
             start = get_tick_time_in_seconds(n.time, midi)
             duration = get_tick_time_in_seconds(n.time + n.duration, midi)
 
-            output_labels.append(OutputLabel(label=f'Note {n.pitch}', t=start, y=n.pitch, duration=duration))
+            output_labels.append(MidiLabel(t=start, label=f'Note {n.pitch}', pitch=n.pitch, duration=duration))
     """
 
     """
