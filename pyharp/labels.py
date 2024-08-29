@@ -31,6 +31,7 @@ class AudioLabel(OutputLabel):
         super().__post_init__()
 
         self.y = (self.amplitude + 1) / 2
+        self.label_type = self.__class__.__name__
 
 
 @dataclass
@@ -41,6 +42,7 @@ class SpectrogramLabel(OutputLabel):
         super().__post_init__()
 
         # TODO - not sure what to do here yet
+        self.label_type = self.__class__.__name__
 
 
 @dataclass
@@ -51,3 +53,4 @@ class MidiLabel(OutputLabel):
         super().__post_init__()
 
         self.y = self.pitch / 128
+        self.label_type = self.__class__.__name__
