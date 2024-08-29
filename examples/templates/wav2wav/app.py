@@ -25,7 +25,7 @@ def process_fn(input_audio_path):
 
     Returns:
         output_audio_path (str): the filepath of the processed audio.
-        output_labels (list of OutputLabel): any labels to display.
+        output_labels (LabelList): any labels to display.
     """
 
     """
@@ -36,7 +36,7 @@ def process_fn(input_audio_path):
 
     """
     <YOUR AUDIO PROCESSING CODE HERE>
-    # Perform a trivial operation (i.e. boosting)
+    # Perform a trivial operation (i.e. gain)
     signal.audio_data = 2 * signal.audio_data
     """
 
@@ -49,7 +49,7 @@ def process_fn(input_audio_path):
     """
     <YOUR LABELING CODE HERE>
     # No output labels
-    output_labels = list()
+    output_labels = LabelList()
     """
 
     return output_audio_path, output_labels
@@ -62,7 +62,6 @@ with gr.Blocks() as demo:
         # <YOUR UI ELEMENTS HERE>
     ]
 
-    # Build endpoint
     app = build_endpoint(model_card=model_card,
                          components=components,
                          process_fn=process_fn)

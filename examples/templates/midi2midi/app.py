@@ -27,7 +27,7 @@ def process_fn(input_midi_path):
 
     Returns:
         output_midi_path (str): the filepath of the processed MIDI.
-        output_labels (list of OutputLabel): any labels to display.
+        output_labels (LabelList): any labels to display.
     """
 
     """
@@ -37,9 +37,23 @@ def process_fn(input_midi_path):
     """
 
     """
+    <YOUR MIDI PROCESSING CODE HERE>
+    # Perform a trivial operation (i.e. gain)
+    for t in midi.tracks:
+        for n in t.notes:
+            n.velocity = min(127, n.velocity * 2)
+    """
+
+    """
+    <YOUR MIDI SAVING CODE HERE>
+    # Save processed MIDI and obtain default path
+    output_midi_path = save_midi(midi, None)
+    """
+
+    """
     <YOUR LABELING CODE HERE>
     # Initialize empty list
-    output_labels = list()
+    output_labels = LabelList()
 
     # Create a label for each note
     for t in midi.tracks:
@@ -47,21 +61,8 @@ def process_fn(input_midi_path):
             start = get_tick_time_in_seconds(n.time, midi)
             duration = get_tick_time_in_seconds(n.time + n.duration, midi)
 
-            output_labels.append(MidiLabel(t=start, label=f'Note {n.pitch}', pitch=n.pitch, duration=duration))
-    """
-
-    """
-    <YOUR MIDI PROCESSING CODE HERE>
-    # Perform a trivial operation (i.e. pitch-shifting)
-    for t in midi.tracks:
-        for n in t.notes:
-            n.pitch += 12
-    """
-
-    """
-    <YOUR MIDI SAVING CODE HERE>
-    # Save processed MIDI and obtain default path
-    output_midi_path = save_midi(midi, None)
+            output_labels.append(
+                MidiLabel(t=start, label=f'New velocity {n.velocity}', pitch=n.pitch, duration=duration))
     """
 
     return output_midi_path, output_labels
@@ -74,7 +75,6 @@ with gr.Blocks() as demo:
         # <YOUR UI ELEMENTS HERE>
     ]
 
-    # Build endpoint
     app = build_endpoint(model_card=model_card,
                          components=components,
                          process_fn=process_fn)
