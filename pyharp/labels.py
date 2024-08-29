@@ -1,11 +1,12 @@
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
+from typing import List, Union, Dict
 
 __all__ = [
     'OutputLabel',
     'AudioLabel',
     'SpectrogramLabel',
-    'MidiLabel'
+    'MidiLabel',
+    'LabelList'
 ]
 
 
@@ -54,3 +55,29 @@ class MidiLabel(OutputLabel):
 
         self.y = self.pitch / 128
         self.label_type = self.__class__.__name__
+
+LabelUnion = Union[AudioLabel, SpectrogramLabel, MidiLabel, OutputLabel]
+
+@dataclass
+class LabelList:
+
+    meta: Dict[str, str] = field(default_factory = dict)
+
+    labels: List[LabelUnion] = field(default_factory = list)
+
+    def __post_init__(self):
+        self.meta = {
+            "_type": self.__class__.__name__
+        }
+
+    def append(self, label):
+        self.labels.append(label)
+
+    def __iter__(self):
+        return iter(self.labels)
+
+    def __getitem__(self, item):
+        return self.labels[item]
+
+    def __len__(self):
+        return len(self.labels)

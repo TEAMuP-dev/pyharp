@@ -32,8 +32,7 @@ def process_fn(input_midi_path, pitch_shift_amount):
 
     midi = load_midi(input_midi_path)
 
-    # output_labels = ListLabels(root=[])
-    output_labels = list() #LabelList(labels=[])
+    output_labels = LabelList(labels=[])
 
     # Create a label for each note
     for t in midi.tracks:
