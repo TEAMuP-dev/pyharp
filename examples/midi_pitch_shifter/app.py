@@ -44,7 +44,7 @@ def process_fn(input_midi_path, pitch_shift_amount):
     
     for t in midi.tracks:
         for n in t.notes:
-            n.pitch += pitch_shift_amount
+            n.pitch += int(pitch_shift_amount)
     
     output_midi_path = save_midi(midi, None)
 

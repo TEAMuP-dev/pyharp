@@ -66,8 +66,10 @@ class LabelList:
     labels: List[LabelUnion] = field(default_factory = list)
 
     def __post_init__(self):
+        # in a similar way to gradio components
+        # e.g. gr.File has meta._type = "gradio.FileData"
         self.meta = {
-            "_type": self.__class__.__name__
+            "_type": f"pyharp.{self.__class__.__name__}"
         }
 
     def append(self, label):
