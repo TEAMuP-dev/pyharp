@@ -24,17 +24,17 @@ class OutputLabel:
 
 @dataclass
 class AudioLabel(OutputLabel):
-    amplitude: float = 0.0
+    amplitude: float = None
 
 
 @dataclass
 class SpectrogramLabel(OutputLabel):
-    frequency: float = 440.0
+    frequency: float = None
 
 
 @dataclass
 class MidiLabel(OutputLabel):
-    pitch: float = 69
+    pitch: float = None
 
 
 LabelUnion = Union[AudioLabel, SpectrogramLabel, MidiLabel, OutputLabel]
