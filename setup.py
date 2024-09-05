@@ -9,7 +9,7 @@ setup(
     description='',
     packages=find_packages(),
     install_requires=[
-        'gradio==4.37.2',
+        'gradio',
         'descript-audiotools',
         'symusic'
     ]
