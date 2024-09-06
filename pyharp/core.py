@@ -276,12 +276,12 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         return out
 
     # component to store the control data
-    controls_output = gr.Text(label="Controls")
+    # controls_output = gr.Text(label="Controls")
     # gr.JSON doesn't work for now. We can use gr.Text instead.
     # The only thing affected is how the json is displayed in the UI.
     # I've filed an issue on the Gradio repo to address this.
     # https://github.com/gradio-app/gradio/issues/9184
-    # controls_output = gr.JSON(label="Controls")
+    controls_output = gr.JSON(label="Controls")
 
     # endpoint allowing HARP to fetch model control data
     controls_button = gr.Button("View Controls", visible=True)
