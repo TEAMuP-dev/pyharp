@@ -17,9 +17,14 @@ class OutputLabel:
     label: str
     duration: float = 0.0
     description: str = None
+    color: int = 0
 
     def __post_init__(self):
         self.label_type = self.__class__.__name__
+
+    def set_color(self, r, g, b, a):
+        self.color = (a << 24) + (r << 16) + (g << 8) + b
+        print(f"Color: {self.color}")
 
 
 @dataclass
