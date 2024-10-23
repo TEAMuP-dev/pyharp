@@ -41,7 +41,7 @@ def process_fn(input_midi_path):
     # Perform a trivial operation (i.e. gain)
     for t in midi.tracks:
         for n in t.notes:
-            n.velocity = min(127, n.velocity * 2)
+            n.velocity = min(127, int(1.25 * n.velocity))
     """
 
     """
@@ -62,7 +62,7 @@ def process_fn(input_midi_path):
             duration = get_tick_time_in_seconds(n.time + n.duration, midi)
 
             output_labels.append(
-                MidiLabel(t=start, label=f'New velocity {n.velocity}', pitch=n.pitch, duration=duration))
+                MidiLabel(t=start, label=f'Vel. {n.velocity}', pitch=n.pitch + 0.5, duration=duration))
     """
 
     return output_midi_path, output_labels

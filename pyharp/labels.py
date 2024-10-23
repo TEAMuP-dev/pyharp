@@ -22,9 +22,13 @@ class OutputLabel:
     def __post_init__(self):
         self.label_type = self.__class__.__name__
 
-    def set_color(self, r, g, b, a):
-        self.color = (a << 24) + (r << 16) + (g << 8) + b
-        print(f"Color: {self.color}")
+    @staticmethod
+    def hex_color_to_int(hex, a=0.5):
+        return (round(a * 255) << 24) + int(hex.strip('#'), 16)
+
+    @staticmethod
+    def rgb_color_to_int(r, g, b, a=0.5):
+        return (round(a * 255) << 24) + (r << 16) + (g << 8) + b
 
 
 @dataclass
