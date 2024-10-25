@@ -18,6 +18,7 @@ class OutputLabel:
     duration: float = 0.0
     description: str = None
     color: int = 0
+    link: str = None
 
     def __post_init__(self):
         self.label_type = self.__class__.__name__
