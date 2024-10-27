@@ -6,15 +6,6 @@ import librosa
 import torch
 
 
-# Create a ModelCard
-model_card = ModelCard(
-    name="Harmonic / Percussive Separation",
-    description="Remix a Track into its harmonic and percussive components.",
-    author="Hugo Flores Garcia",
-    tags=["example", "separator", "hpss"]
-)
-
-
 def hpss(signal: AudioSignal, **kwargs):
     h, p = librosa.effects.hpss(signal.audio_data.squeeze().numpy(), **kwargs)
 
@@ -61,15 +52,20 @@ def process_fn(audio_file_path,
 
     output_audio_path = save_audio(sig, None)
 
-    # No output labels
-    output_labels = LabelList()
+    return output_audio_path
+    
+# Create a ModelCard
+model_card = ModelCard(
+    name="Harmonic / Percussive Separation",
+    description="Remix a Track into its harmonic and percussive components.",
+    author="Hugo Flores Garcia",
+    tags=["example", "separator", "hpss"]
+)
 
-    return output_audio_path, output_labels
 
-
-# Build Gradio endpoint
+# Build the endpoint
 with gr.Blocks() as demo:
-    # Define Gradio Components
+    # Define your Gradio interface
     components = [
         gr.Slider(
             minimum=MIN_DB, maximum=24, 
@@ -93,6 +89,7 @@ with gr.Blocks() as demo:
         ),
     ]
 
+    # Build the endpoint
     app = build_endpoint(model_card=model_card,
                          components=components,
                          process_fn=process_fn)
