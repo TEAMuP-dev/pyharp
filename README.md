@@ -113,7 +113,7 @@ This could be a source separation model, a text-to-music generation model, a mus
 
 The following processing code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
-from pyharp import load_audio, save_audio, OutputLabel, LabelList
+from pyharp import load_audio, save_audio
 
 import torchaudio
 import torch
@@ -133,10 +133,7 @@ def process_fn(input_audio_path, pitch_shift_amount):
 
     output_audio_path = save_audio(sig)
 
-    output_labels = LabelList()
-    output_labels.append(OutputLabel(label='short label', t=0.0, description='longer description'))
-
-    return output_audio_path, output_labels
+    return output_audio_path
 ```
 
 The function takes two arguments:
@@ -145,7 +142,6 @@ The function takes two arguments:
 
 and returns:
 - `output_audio_path`: the filepath of the processed audio
-- `output_labels`: any labels to display
 
 Note that this code uses the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)).
 

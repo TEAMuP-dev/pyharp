@@ -27,7 +27,6 @@ def process_fn(input_midi_path):
 
     Returns:
         output_midi_path (str): the filepath of the processed MIDI.
-        output_labels (LabelList): any labels to display.
     """
 
     """
@@ -38,10 +37,10 @@ def process_fn(input_midi_path):
 
     """
     <YOUR MIDI PROCESSING CODE HERE>
-    # Perform a trivial operation (i.e. gain)
+    # Perform a trivial operation (i.e. pitch-shifting)
     for t in midi.tracks:
         for n in t.notes:
-            n.velocity = min(127, int(1.25 * n.velocity))
+            n.pitch += 12
     """
 
     """
@@ -50,22 +49,7 @@ def process_fn(input_midi_path):
     output_midi_path = save_midi(midi, None)
     """
 
-    """
-    <YOUR LABELING CODE HERE>
-    # Initialize empty list
-    output_labels = LabelList()
-
-    # Create a label for each note
-    for t in midi.tracks:
-        for n in t.notes:
-            start = get_tick_time_in_seconds(n.time, midi)
-            duration = get_tick_time_in_seconds(n.time + n.duration, midi)
-
-            output_labels.append(
-                MidiLabel(t=start, label=f'Vel. {n.velocity}', pitch=n.pitch + 0.5, duration=duration))
-    """
-
-    return output_midi_path, output_labels
+    return output_midi_path
 
 
 # Build Gradio endpoint
@@ -75,6 +59,7 @@ with gr.Blocks() as demo:
         # <YOUR UI ELEMENTS HERE>
     ]
 
+    # Build endpoint
     app = build_endpoint(model_card=model_card,
                          components=components,
                          process_fn=process_fn)
