@@ -1,21 +1,24 @@
 from gradio.components.base import Component
 from dataclasses import dataclass, asdict
-from pathlib import Path
 from typing import List
 
 import gradio as gr
-import audiotools
-import symusic
 
 
 __all__ = [
     'ModelCard',
-    'load_audio',
-    'save_audio',
-    'load_midi',
-    'save_midi',
     'build_endpoint'
 ]
+
+
+@dataclass
+class ModelCard:
+    name: str
+    description: str
+    author: str
+    tags: List[str]
+    midi_in: bool = False
+    midi_out: bool = False
 
 
 @dataclass
@@ -67,98 +70,6 @@ class NumberControl(Control):
     maximum: float
     value: bool
     ctrl_type: str = "number_box"
-
-
-@dataclass
-class ModelCard:
-    name: str
-    description: str
-    author: str
-    tags: List[str]
-    midi_in: bool = False
-    midi_out: bool = False
-
-
-def load_audio(input_audio_path):
-    """
-    Loads audio at a specified path using audiotools (Descript).
-
-    Args:
-        input_audio_path (str): the audio filepath to load.
-
-    Returns:
-        signal (audiotools.AudioSignal): wrapped audio signal.
-    """
-
-    signal = audiotools.AudioSignal(input_audio_path)
-
-    return signal
-
-
-def save_audio(signal, output_audio_path=None):
-    """
-    Saves audio to a specified path using audiotools (Descript).
-
-    Args:
-        signal (audiotools.AudioSignal): wrapped audio signal.
-        output_audio_path (str): the filepath to use to save the audio.
-
-    Returns:
-        output_audio_path (str): the filepath of the saved audio.
-    """
-
-    assert isinstance(signal, audiotools.AudioSignal), "Default loading only supports instances of audiotools.AudioSignal."
-
-    if output_audio_path is None:
-        output_dir = Path("_outputs")
-        output_dir.mkdir(exist_ok=True)
-        output_audio_path = output_dir / "output.wav"
-        output_audio_path = output_audio_path.absolute().__str__()
-
-    signal.write(output_audio_path)
-
-    return signal.path_to_file
-
-
-def load_midi(input_midi_path):
-    """
-    Loads MIDI at a specified path using symusic (https://yikai-liao.github.io/symusic/).
-
-    Args:
-        input_midi_path (str): the MIDI filepath to load.
-
-    Returns:
-        midi (symusic.Score) wrapped midi data.
-    """
-
-    midi = symusic.Score.from_file(input_midi_path)
-
-    return midi
-
-
-def save_midi(midi, output_midi_path=None):
-    """
-    Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
-
-    Args:
-        midi (symusic.Score) wrapped midi data.
-        output_midi_path (str): the filepath to use to save the MIDI.
-
-    Returns:
-        output_midi_path (str): the filepath of the saved MIDI.
-    """
-
-    assert isinstance(midi, symusic.Score), "Default loading only supports instances of symusic.Score."
-
-    if output_midi_path is None:
-        output_dir = Path("_outputs")
-        output_dir.mkdir(exist_ok=True)
-        output_midi_path = output_dir / "output.mid"
-        output_midi_path = output_midi_path.absolute().__str__()
-
-    midi.dump_midi(output_midi_path)
-
-    return output_midi_path
 
 
 def get_control(cmp: Component) -> Control:
@@ -240,76 +151,77 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
     Returns:
         app (dict):
             A dictionary containing:
-                1. A gr.JSON to store the ctrl data.
-                2. A gr.Button to get the ctrl data.
+                1. A gr.JSON to store the control data.
+                2. A gr.Button to get the control data.
                 3. A gr.Button to process the input and generate the output.
                 4. A gr.Button to cancel processing.
     """
 
     if model_card.midi_in:
         # input MIDI file browser
-        main_in = gr.File(
+        media_in = gr.File(
             type='filepath',
-            label="Midi Input",
+            label="Input Midi",
             file_types=[".mid", ".midi"]
         )
     else:
         # input audio file browser
-        main_in = gr.Audio(
+        media_in = gr.Audio(
             type='filepath',
-            label='Audio Input'
+            label='Input Audio'
         )
 
     # add input file explorer to components
-    components.insert(0, main_in)
+    components.insert(0, media_in)
 
     # convert Gradio components to simple controls
     controls = [get_control(cmp) for cmp in components]
 
     # callable returning card and controls
     def fetch_model_info():
-        out = {
+        data = {
             "card": asdict(model_card),
             "ctrls": [asdict(ctrl) for ctrl in controls]
         }
 
-        return out
+        return data
 
     # component to store the control data
-    controls_output = gr.JSON(label="Controls")
+    controls_data = gr.JSON(label="Controls Data")
 
     # endpoint allowing HARP to fetch model control data
     controls_button = gr.Button("View Controls", visible=True)
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
-        outputs=controls_output,
-        #api_name="controls" TODO - better naming scheme (breaking change)
-        api_name="wav2wav-ctrls"
+        outputs=controls_data,
+        api_name="controls"
     )
 
     if model_card.midi_out:
         # output MIDI file browser
-        out = gr.File(
+        media_out = gr.File(
             type='filepath',
-            label="Midi Output",
+            label="Output Midi",
             file_types=[".mid", ".midi"]
         )
     else:
         # output audio file browser
-        out = gr.Audio(
+        media_out = gr.Audio(
             type='filepath',
-            label='Audio Output'
+            label='Output Audio'
         )
+
+    # component to store the labels data
+    output_labels = gr.JSON(label="Output Labels")
 
     # process button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
         fn=process_fn,
         inputs=components,
-        outputs=[out],
-        #api_name="process" TODO - better naming scheme (breaking change)
-        api_name="wav2wav"
+        outputs=[media_out, output_labels],
+        api_name="process"
     )
 
     # cancel button to stop processing
@@ -318,13 +230,12 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         fn=lambda: None,
         inputs=[],
         outputs=[],
-        #api_name="cancel" TODO - better naming scheme (breaking change)
-        api_name="wav2wav-cancel",
+        api_name="cancel",
         cancels=[process_event]
     )
 
     app = {
-        "controls_output": controls_output,
+        "controls_data": controls_data,
         "controls_button": controls_button,
         "process_button": process_button,
         "cancel_button": cancel_button
