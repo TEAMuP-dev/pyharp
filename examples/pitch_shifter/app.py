@@ -4,6 +4,18 @@ import gradio as gr
 import torchaudio
 import torch
 
+
+# Create a ModelCard
+model_card = ModelCard(
+    name="Pitch Shifter",
+    description="A pitch shifting example for HARP.",
+    author="Hugo Flores Garcia",
+    tags=["example", "pitch shift"],
+    midi_in=False,
+    midi_out=False
+)
+
+
 # Define the process function
 @torch.inference_mode()
 def process_fn(input_audio_path, pitch_shift_amount):
@@ -23,22 +35,15 @@ def process_fn(input_audio_path, pitch_shift_amount):
 
     output_audio_path = save_audio(sig)
 
-    return output_audio_path
+    # No output labels
+    output_labels = LabelList()
 
-# Create a ModelCard
-model_card = ModelCard(
-    name="Pitch Shifter",
-    description="A pitch shifting example for HARP.",
-    author="Hugo Flores Garcia",
-    tags=["example", "pitch shift"],
-    midi_in=False,
-    midi_out=False
-)
+    return output_audio_path, output_labels
 
 
-# Build the endpoint
+# Build Gradio endpoint
 with gr.Blocks() as demo:
-    # Define your Gradio interface
+    # Define Gradio Components
     components = [
         gr.Slider(
             minimum=-24, 
