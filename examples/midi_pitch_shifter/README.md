@@ -1,5 +1,5 @@
 ---
-title: Midi2Midi Template
+title: Midi Pitch Shifter
 emoji: 🏆
 colorFrom: indigo
 colorTo: gray
