@@ -3,7 +3,7 @@ from dataclasses import dataclass, asdict
 from typing import List
 
 import gradio as gr
-
+import inspect
 
 __all__ = [
     'ModelCard',
@@ -133,7 +133,8 @@ def get_control(cmp: Component) -> Control:
     return ctrl
 
 
-def build_endpoint(model_card: ModelCard, components: list, process_fn: callable) -> tuple:
+def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
+                   process_fn: callable) -> tuple:
     """
     Builds a Gradio endpoint compatible with HARP, facilitating VST3 plugin usage in a DAW.
 
@@ -157,25 +158,25 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
                 4. A gr.Button to cancel processing.
     """
 
-    if model_card.midi_in:
-        # input MIDI file browser
-        media_in = gr.File(
-            type='filepath',
-            label="Input Midi",
-            file_types=[".mid", ".midi"]
-        )
-    else:
-        # input audio file browser
-        media_in = gr.Audio(
-            type='filepath',
-            label='Input Audio'
-        )
+    # if model_card.midi_in:
+    #     # input MIDI file browser
+    #     media_in = gr.File(
+    #         type='filepath',
+    #         label="Input Midi",
+    #         file_types=[".mid", ".midi"]
+    #     )
+    # else:
+    #     # input audio file browser
+    #     media_in = gr.Audio(
+    #         type='filepath',
+    #         label='Input Audio'
+    #     )
 
     # add input file explorer to components
-    components.insert(0, media_in)
+    # components.insert(0, media_in)
 
     # convert Gradio components to simple controls
-    controls = [get_control(cmp) for cmp in components]
+    controls = [get_control(cmp) for cmp in input_components]
 
     # callable returning card and controls
     def fetch_model_info():
@@ -198,29 +199,33 @@ def build_endpoint(model_card: ModelCard, components: list, process_fn: callable
         api_name="controls"
     )
 
-    if model_card.midi_out:
-        # output MIDI file browser
-        media_out = gr.File(
-            type='filepath',
-            label="Output Midi",
-            file_types=[".mid", ".midi"]
-        )
-    else:
-        # output audio file browser
-        media_out = gr.Audio(
-            type='filepath',
-            label='Output Audio'
-        )
+    # if model_card.midi_out:
+    #     # output MIDI file browser
+    #     media_out = gr.File(
+    #         type='filepath',
+    #         label="Output Midi",
+    #         file_types=[".mid", ".midi"]
+    #     )
+    # else:
+    #     # output audio file browser
+    #     media_out = gr.Audio(
+    #         type='filepath',
+    #         label='Output Audio'
+    #     )
+
+    # Detect the return type of process_fn
+    # sig = inspect.signature(process_fn)
+    # return_annotation = sig.return_annotation
 
     # component to store the labels data
-    output_labels = gr.JSON(label="Output Labels")
+    # output_labels = gr.JSON(label="Output Labels")
 
     # process button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
         fn=process_fn,
-        inputs=components,
-        outputs=[media_out, output_labels],
+        inputs=input_components,
+        outputs=output_components,
         api_name="process"
     )
 
