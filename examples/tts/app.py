@@ -1,8 +1,6 @@
 from pyharp import *
 
 import gradio as gr
-import torchaudio
-import torch
 from typing import Tuple
 
 from gtts import gTTS
@@ -16,7 +14,6 @@ model_card = ModelCard(
 )
 
 # Define the process function
-@torch.inference_mode()
 def process_fn(input_text: str) -> Tuple[str, list]:
 
     tts_out = gTTS(text=input_text, lang="en", slow=False)

@@ -1,6 +1,6 @@
 ---
-title: Pitch Shifter
-emoji: 🏆
+title: TTS
+emoji: 🗣️
 colorFrom: indigo
 colorTo: gray
 sdk: gradio
