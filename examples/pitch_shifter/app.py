@@ -11,8 +11,8 @@ model_card = ModelCard(
     description="A pitch shifting example for HARP.",
     author="Hugo Flores Garcia",
     tags=["example", "pitch shift"],
-    midi_in=False,
-    midi_out=True
+    # midi_in=False,
+    # midi_out=True
 )
 
 # Define the process function
@@ -36,7 +36,9 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> Tuple[str, lis
 
     # No output labels
     output_labels = LabelList()
-
+    dummy_label = MidiLabel(1, "skata", 1, "skatoules", 0, "www.cbenetatos.com", 42)
+    output_labels.labels.append(dummy_label)
+    
     midi_file = load_midi("../HARP/test.mid")
     output_midi_path = save_midi(midi_file)
 
@@ -48,7 +50,7 @@ with gr.Blocks() as demo:
     input_components = [
         gr.Audio(
             type='filepath',
-            label='Output Audio'
+            label='Input Audio'
         ),
         gr.Slider(
             minimum=-24, 

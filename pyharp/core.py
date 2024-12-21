@@ -10,128 +10,126 @@ __all__ = [
     'build_endpoint'
 ]
 
-
 @dataclass
 class ModelCard:
     name: str
     description: str
     author: str
     tags: List[str]
-    midi_in: bool = False
-    midi_out: bool = False
-
+    # midi_in: bool = False
+    # midi_out: bool = False
 
 @dataclass
-class Control:
+class HarpComponent:
     label: str
 
-
 @dataclass
-class AudioInControl(Control):
-    ctrl_type: str = "audio_in"
-
-
-@dataclass
-class MidiInControl(Control):
-    ctrl_type: str = "midi_in"
+class HarpAudio(HarpComponent):
+    type: str = "audio"
 
 
 @dataclass
-class SliderControl(Control):
+class HarpMidi(HarpComponent):
+    type: str = "midi"
+
+@dataclass
+class HarpSlider(HarpComponent):
     minimum: float
     maximum: float
     step: float
     value: float
-    ctrl_type: str = "slider"
-
+    type: str = "slider"
 
 @dataclass
-class TextControl(Control):
+class HarpText(HarpComponent):
     value: str
-    ctrl_type: str = "text"
-
+    type: str = "text"
 
 @dataclass
-class ToggleControl(Control):
+class HarpToggle(HarpComponent):
     value: bool
-    ctrl_type: str = "toggle"
-
+    type: str = "toggle"
 
 @dataclass
-class DropdownControl(Control):
+class HarpDropdown(HarpComponent):
     choices: List[str]
     value: str
-    ctrl_type: str = "dropdown"
-
+    type: str = "dropdown"
 
 @dataclass
-class NumberControl(Control):
+class HarpNumber(HarpComponent):
     minimum: float
     maximum: float
     value: bool
-    ctrl_type: str = "number_box"
+    type: str = "number_box"
 
+@dataclass
+class HarpJSON(HarpComponent):
+    type: str = "json"
 
-def get_control(cmp: Component) -> Control:
+def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
-    Obtain a Ctrl object corresponding to a specified Gradio component.
+    Obtain a HarpComponent object corresponding to a specified Gradio component.
 
     Args:
-        cmp (gr.Component): A Gradio input component.
+        gr_cmp (gr.Component): A Gradio input component.
 
     Returns:
-        ctrl (Control): Corresponding Ctrl object.
+        harp_cmp (HarpComponent): Corresponding HarpComponent object.
 
     Raises:
         ValueError: If input component is not supported.
     """
 
-    if isinstance(cmp, gr.Audio):
-        assert cmp.type == "filepath", f"Audio input must be of type filepath, not {cmp.type}"
-        ctrl = AudioInControl(
-            label=cmp.label
+    if isinstance(gr_cmp, gr.Audio):
+        assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
+        harp_cmp = HarpAudio(
+            label=gr_cmp.label
         )
-    elif isinstance(cmp, gr.File) and ('.mid' in cmp.file_types or '.midi' in cmp.file_types):
-        assert cmp.type == "filepath", f"File input must be of type filepath, not {cmp.type}"
-        ctrl = MidiInControl(
-            label=cmp.label
+    elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
+        assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
+        harp_cmp = HarpMidi(
+            label=gr_cmp.label
         )
-    elif isinstance(cmp, gr.Slider):
-        ctrl = SliderControl(
-            minimum=cmp.minimum,
-            maximum=cmp.maximum,
-            label=cmp.label,
-            value=cmp.value,
-            step=cmp.step,
+    elif isinstance(gr_cmp, gr.Slider):
+        harp_cmp = HarpSlider(
+            minimum=gr_cmp.minimum,
+            maximum=gr_cmp.maximum,
+            label=gr_cmp.label,
+            value=gr_cmp.value,
+            step=gr_cmp.step,
         )
-    elif isinstance(cmp, gr.Textbox):
-        ctrl = TextControl(
-            label=cmp.label,
-            value=cmp.value
+    elif isinstance(gr_cmp, gr.Textbox):
+        harp_cmp = HarpText(
+            label=gr_cmp.label,
+            value=gr_cmp.value
         )
-    elif isinstance(cmp, gr.Checkbox):
-        ctrl = ToggleControl(
-            label=cmp.label,
-            value=cmp.value
+    elif isinstance(gr_cmp, gr.Checkbox):
+        harp_cmp = HarpToggle(
+            label=gr_cmp.label,
+            value=gr_cmp.value
         )
-    elif isinstance(cmp, gr.Dropdown):
-        ctrl = DropdownControl(
-            label=cmp.label,
-            choices=cmp.choices,
-            value=cmp.value
+    elif isinstance(gr_cmp, gr.Dropdown):
+        harp_cmp = HarpDropdown(
+            label=gr_cmp.label,
+            choices=gr_cmp.choices,
+            value=gr_cmp.value
         )
-    elif isinstance(cmp, gr.Number):
-        ctrl = NumberControl(
-            label=cmp.label,
-            value=cmp.value
+    elif isinstance(gr_cmp, gr.JSON):
+        harp_cmp = HarpJSON(
+            label=gr_cmp.label,
+        )
+    elif isinstance(gr_cmp, gr.Number):
+        harp_cmp = HarpNumber(
+            label=gr_cmp.label,
+            value=gr_cmp.value
         )
     else:
         raise ValueError(
-            f"HARP does not support provided {cmp} component. Please remove it or use an alternative."
+            f"HARP does not support provided {gr_cmp} component. Please remove it or use an alternative."
         )
 
-    return ctrl
-
+    return harp_cmp
 
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
                    process_fn: callable) -> tuple:
@@ -158,33 +156,17 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
                 4. A gr.Button to cancel processing.
     """
 
-    # if model_card.midi_in:
-    #     # input MIDI file browser
-    #     media_in = gr.File(
-    #         type='filepath',
-    #         label="Input Midi",
-    #         file_types=[".mid", ".midi"]
-    #     )
-    # else:
-    #     # input audio file browser
-    #     media_in = gr.Audio(
-    #         type='filepath',
-    #         label='Input Audio'
-    #     )
-
-    # add input file explorer to components
-    # components.insert(0, media_in)
-
     # convert Gradio components to simple controls
-    controls = [get_control(cmp) for cmp in input_components]
+    harp_inputs = [get_harp_component(gr_cmp) for gr_cmp in input_components]
+    harp_outputs = [get_harp_component(gr_cmp) for gr_cmp in output_components]
 
     # callable returning card and controls
     def fetch_model_info():
         data = {
             "card": asdict(model_card),
-            "ctrls": [asdict(ctrl) for ctrl in controls]
+            "inputs": [asdict(harp_cmp) for harp_cmp in harp_inputs],
+            "outputs": [asdict(harp_cmp) for harp_cmp in harp_outputs]
         }
-
         return data
 
     # component to store the control data
@@ -198,20 +180,6 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         outputs=controls_data,
         api_name="controls"
     )
-
-    # if model_card.midi_out:
-    #     # output MIDI file browser
-    #     media_out = gr.File(
-    #         type='filepath',
-    #         label="Output Midi",
-    #         file_types=[".mid", ".midi"]
-    #     )
-    # else:
-    #     # output audio file browser
-    #     media_out = gr.Audio(
-    #         type='filepath',
-    #         label='Output Audio'
-    #     )
 
     # Detect the return type of process_fn
     # sig = inspect.signature(process_fn)
