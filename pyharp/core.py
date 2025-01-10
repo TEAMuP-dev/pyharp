@@ -24,13 +24,12 @@ class HarpComponent:
     label: str
 
 @dataclass
-class HarpAudio(HarpComponent):
-    type: str = "audio"
-
+class HarpAudioTrack(HarpComponent):
+    type: str = "audio_track"
 
 @dataclass
-class HarpMidi(HarpComponent):
-    type: str = "midi"
+class HarpMidiTrack(HarpComponent):
+    type: str = "midi_track"
 
 @dataclass
 class HarpSlider(HarpComponent):
@@ -41,9 +40,9 @@ class HarpSlider(HarpComponent):
     type: str = "slider"
 
 @dataclass
-class HarpText(HarpComponent):
+class HarpTextBox(HarpComponent):
     value: str
-    type: str = "text"
+    type: str = "text_box"
 
 @dataclass
 class HarpToggle(HarpComponent):
@@ -57,7 +56,7 @@ class HarpDropdown(HarpComponent):
     type: str = "dropdown"
 
 @dataclass
-class HarpNumber(HarpComponent):
+class HarpNumberBox(HarpComponent):
     minimum: float
     maximum: float
     value: bool
@@ -83,12 +82,12 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
 
     if isinstance(gr_cmp, gr.Audio):
         assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
-        harp_cmp = HarpAudio(
+        harp_cmp = HarpAudioTrack(
             label=gr_cmp.label
         )
     elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
         assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
-        harp_cmp = HarpMidi(
+        harp_cmp = HarpMidiTrack(
             label=gr_cmp.label
         )
     elif isinstance(gr_cmp, gr.Slider):
@@ -100,7 +99,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             step=gr_cmp.step,
         )
     elif isinstance(gr_cmp, gr.Textbox):
-        harp_cmp = HarpText(
+        harp_cmp = HarpTextBox(
             label=gr_cmp.label,
             value=gr_cmp.value
         )
@@ -120,9 +119,11 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             label=gr_cmp.label,
         )
     elif isinstance(gr_cmp, gr.Number):
-        harp_cmp = HarpNumber(
+        harp_cmp = HarpNumberBox(
             label=gr_cmp.label,
-            value=gr_cmp.value
+            value=gr_cmp.value,
+            minimum=gr_cmp.minimum,
+            maximum=gr_cmp.maximum
         )
     else:
         raise ValueError(

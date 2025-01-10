@@ -8,7 +8,7 @@ from typing import Tuple
 # Create a ModelCard
 model_card = ModelCard(
     name="Pitch Shifter",
-    description="A pitch shifting example for HARP.",
+    description="A pitch shifting example for HARP.A pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARP",
     author="Hugo Flores Garcia",
     tags=["example", "pitch shift"],
     # midi_in=False,
@@ -17,7 +17,10 @@ model_card = ModelCard(
 
 # Define the process function
 @torch.inference_mode()
-def process_fn(input_audio_path: str, pitch_shift_amount: int) -> Tuple[str, list]:
+def process_fn(input_audio_path: str, input_audio_path_2: str, 
+               pitch_shift_amount: int, slider_2: int,
+               test_checkbox: bool, 
+               test_number: int, test_textbox: str) -> Tuple[str, LabelList]:
 
     if isinstance(pitch_shift_amount, torch.Tensor):
         pitch_shift_amount = pitch_shift_amount.long().item()
@@ -50,7 +53,11 @@ with gr.Blocks() as demo:
     input_components = [
         gr.Audio(
             type='filepath',
-            label='Input Audio'
+            label='Input Audio A'
+        ),
+        gr.Audio(
+            type='filepath',
+            label='Input Audio B'
         ),
         gr.Slider(
             minimum=-24, 
@@ -59,7 +66,30 @@ with gr.Blocks() as demo:
             value=7, 
             label="Pitch Shift (semitones)"
         ),
+        gr.Slider(
+            minimum=-12, 
+            maximum=12, 
+            step=1, 
+            value=0, 
+            label="Slider 2"
+        ),
+        gr.Checkbox(
+            label="Test Checkbox",
+            value=False
+        ),
+        gr.Number(
+            label="Test Number",
+            value=42,
+            maximum=100,
+            minimum=0
+
+        ),
+        gr.Textbox(
+            label="Test Textbox",
+            value="Hello World"
+        ),
     ]
+    
     output_components = [
         # gr.Audio(
         #     type='filepath',
