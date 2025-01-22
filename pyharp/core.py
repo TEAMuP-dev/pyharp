@@ -16,8 +16,6 @@ class ModelCard:
     description: str
     author: str
     tags: List[str]
-    # midi_in: bool = False
-    # midi_out: bool = False
 
 @dataclass
 class HarpComponent:
@@ -201,7 +199,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     # cancel button to stop processing
     cancel_button = gr.Button("Cancel")
     cancel_button.click(
-        fn=lambda: None,
+        fn=None,
         inputs=[],
         outputs=[],
         api_name="cancel",

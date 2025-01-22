@@ -4,6 +4,9 @@ import gradio as gr
 import torchaudio
 import torch
 from typing import Tuple
+import time
+from dataclasses import dataclass, asdict
+
 
 # Create a ModelCard
 model_card = ModelCard(
@@ -11,31 +14,30 @@ model_card = ModelCard(
     description="A pitch shifting example for HARP.A pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARP",
     author="Hugo Flores Garcia",
     tags=["example", "pitch shift"],
-    # midi_in=False,
-    # midi_out=True
 )
 
 # Define the process function
 @torch.inference_mode()
-def process_fn(input_audio_path: str, input_audio_path_2: str, 
+def process_fn(
+    input_audio_path: str, input_audio_path_2: str, 
                pitch_shift_amount: int, slider_2: int,
                test_checkbox: bool, 
                test_number: int, test_textbox: str) -> Tuple[str, LabelList]:
 
-    if isinstance(pitch_shift_amount, torch.Tensor):
-        pitch_shift_amount = pitch_shift_amount.long().item()
+    # if isinstance(pitch_shift_amount, torch.Tensor):
+    #     pitch_shift_amount = pitch_shift_amount.long().item()
 
-    sig = load_audio(input_audio_path)
+    # sig = load_audio(input_audio_path)
 
-    ps = torchaudio.transforms.PitchShift(
-        sig.sample_rate,
-        n_steps=pitch_shift_amount, 
-        bins_per_octave=12, 
-        n_fft=512
-    ) 
-    sig.audio_data = ps(sig.audio_data)
+    # ps = torchaudio.transforms.PitchShift(
+    #     sig.sample_rate,
+    #     n_steps=pitch_shift_amount, 
+    #     bins_per_octave=12, 
+    #     n_fft=512
+    # ) 
+    # sig.audio_data = ps(sig.audio_data)
 
-    output_audio_path = save_audio(sig)
+    # output_audio_path = save_audio(sig)
 
     # No output labels
     output_labels = LabelList()
@@ -44,6 +46,11 @@ def process_fn(input_audio_path: str, input_audio_path_2: str,
     
     midi_file = load_midi("../HARP/test.mid")
     output_midi_path = save_midi(midi_file)
+    counter = 0
+    while counter < 10:
+        print(counter)
+        counter += 1
+        time.sleep(1)
 
     return output_midi_path, output_labels
 
@@ -108,6 +115,6 @@ with gr.Blocks() as demo:
                 input_components=input_components,
                 output_components=output_components,
                 process_fn=process_fn)
+    
 
-demo.queue()
-demo.launch(share=True, show_error=True)
+demo.queue().launch(share=True, show_error=False)
