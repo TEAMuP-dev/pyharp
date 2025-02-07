@@ -1,64 +1,6 @@
-# from pyharp import *
-
-# import gradio as gr
-# import torchaudio
-# import torch
-# from typing import Tuple
-# import time
-
-# # Create a ModelCard
-# model_card = ModelCard(
-#     name="Pitch Shifter",
-#     description="A pitch shifting example for HARP.A pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARPA pitch shifting example for HARP",
-#     author="Hugo Flores Garcia",
-#     tags=["example", "pitch shift"],
-# )
-
-# # Define the process function
-# @torch.inference_mode()
-# def process_fn(seconds_to_wait: int): # -> Tuple[str, LabelList]:
-
-#     counter = 0
-#     while counter < seconds_to_wait:
-#         print(counter)
-#         counter += 1
-#         time.sleep(1)
-
-#     return
-
-# # Build Gradio endpoint
-# with gr.Blocks() as demo:
-#     # Define Gradio Components
-#     input_components = [
-#         gr.Number(
-#             label='Seconds to wait',
-#             value=10,
-#             # type='number'
-#         )
-#     ]
-    
-#     output_components = [
-#         # gr.Audio(
-#         #     type='filepath',
-#         #     label='Output Audio'
-#         # ),
-#         # gr.File(
-#         #     type='filepath',
-#         #     label="Output Midi",
-#         #     file_types=[".mid", ".midi"]
-#         # ),
-#         # gr.JSON(label="Output Labels")
-#     ]
-
-#     app = build_endpoint(
-#                 model_card=model_card,
-#                 input_components=input_components,
-#                 output_components=output_components,
-#                 process_fn=process_fn)
-
-# demo.queue(max_size=100, default_concurrency_limit=100)
-# demo.launch(share=True, show_error=True)
-
+"""
+Simple "fake cancel" example
+"""
 import gradio as gr
 import time
 
@@ -77,3 +19,80 @@ with gr.Blocks() as block:
     stop_btn.click(fn=None, inputs=None, outputs=None, cancels=[click_event])
     
 block.queue().launch()
+
+
+"""
+Threading solution
+"""
+# import gradio as gr
+# import time
+# import threading
+# class ThreadManager:
+#     def __init__(self):
+#         self.running_thread = None
+#         self.should_stop = False
+
+#     def counter(self):
+#         for i in range(300):
+#             if self.should_stop:
+#                 print("Stopped!")
+#                 break
+#             print(i)
+#             time.sleep(0.5)
+#     def start_counter(self):
+#         self.should_stop = False  # Reset the stop flag
+#         self.running_thread = threading.Thread(target=self.counter)
+#         self.running_thread.start()
+#         return self.running_thread
+#     def stop_counter(self):
+#         self.should_stop = True
+#         if self.running_thread and self.running_thread.is_alive():
+#             self.running_thread.join(timeout=1)  # Wait for the thread to finish
+
+# # Create an instance of ThreadManager
+# manager = ThreadManager()
+# with gr.Blocks() as block:
+#     start_btn = gr.Button("start")
+#     stop_btn = gr.Button("stop")
+#     # Start the counter function and save the thread reference
+#     start_btn.click(fn=manager.start_counter, inputs=None, outputs=None)
+#     # Stop the running thread
+#     stop_btn.click(fn=manager.stop_counter, inputs=None, outputs=None)
+# block.queue().launch()
+
+# """
+# Multiprocessing solution
+# """
+
+# import gradio as gr
+# import time
+# import multiprocessing
+
+# class ProcessManager:
+#     def __init__(self):
+#         self.process = None
+
+#     def counter(self):
+#         # Your long PyTorch inference code here
+#         for i in range(300):
+#             print(i)
+#             time.sleep(0.5)
+
+#     def start_counter(self):
+#         self.process = multiprocessing.Process(target=self.counter)
+#         self.process.start()
+
+#     def stop_counter(self):
+#         if self.process and self.process.is_alive():
+#             self.process.terminate()
+#             self.process.join()
+
+# manager = ProcessManager()
+# with gr.Blocks() as block:
+#     start_btn = gr.Button("start")
+#     stop_btn = gr.Button("stop")
+#     # Start the counter function in a new process
+#     start_btn.click(fn=manager.start_counter, inputs=None, outputs=None)
+#     # Stop the running process
+#     stop_btn.click(fn=manager.stop_counter, inputs=None, outputs=None)
+# block.queue().launch()
