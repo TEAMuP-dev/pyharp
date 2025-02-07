@@ -64,11 +64,11 @@ class LabelList:
     def append(self, label):
         self.labels.append(label)
 
-    def __iter__(self):
-        return iter(self.labels)
+    # def __iter__(self):
+    #     return iter(self.labels)
 
-    def __getitem__(self, item):
-        return self.labels[item]
+    # def __getitem__(self, item):
+    #     return self.labels[item]
 
-    def __len__(self):
-        return len(self.labels)
+    # def __len__(self):
+    #     return len(self.labels)
