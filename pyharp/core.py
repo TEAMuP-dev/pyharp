@@ -20,6 +20,7 @@ class ModelCard:
 @dataclass
 class HarpComponent:
     label: str
+    required: bool = True
 
 @dataclass
 class HarpAudioTrack(HarpComponent):
@@ -64,6 +65,29 @@ class HarpNumberBox(HarpComponent):
 class HarpJSON(HarpComponent):
     type: str = "json"
 
+def extend_gradio():
+    """
+    A hacky way to extend a Gradio component
+    with any HARP-specific attributes.
+
+    This needs to be called when importing pyharp
+    so we add it at the end of core.py
+
+    The developer can use it like:
+    gr.Audio(type="filepath", label="Input Audio A").harp_required(True),
+    """
+    
+    def harp_required(self, required=True):
+        self.is_harp_required = required
+        return self
+    def is_harp_required(self):
+        # Default to True
+        # if not set by the user
+        return getattr(self, "_is_harp_required", True)
+        
+    Component.harp_required = harp_required
+    Component.is_harp_required = property(is_harp_required)
+
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
     Obtain a HarpComponent object corresponding to a specified Gradio component.
@@ -81,12 +105,14 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     if isinstance(gr_cmp, gr.Audio):
         assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpAudioTrack(
-            label=gr_cmp.label
+            label=gr_cmp.label,
+            required=gr_cmp.is_harp_required,
         )
     elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
         assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpMidiTrack(
-            label=gr_cmp.label
+            label=gr_cmp.label,
+            required=gr_cmp.is_harp_required,
         )
     elif isinstance(gr_cmp, gr.Slider):
         harp_cmp = HarpSlider(
@@ -95,33 +121,39 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             label=gr_cmp.label,
             value=gr_cmp.value,
             step=gr_cmp.step,
+            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Textbox):
         harp_cmp = HarpTextBox(
             label=gr_cmp.label,
-            value=gr_cmp.value
+            value=gr_cmp.value,
+            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Checkbox):
         harp_cmp = HarpToggle(
             label=gr_cmp.label,
-            value=gr_cmp.value
+            value=gr_cmp.value,
+            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Dropdown):
         harp_cmp = HarpDropdown(
             label=gr_cmp.label,
             choices=gr_cmp.choices,
-            value=gr_cmp.value
+            value=gr_cmp.value,
+            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.JSON):
         harp_cmp = HarpJSON(
             label=gr_cmp.label,
+            value=gr_cmp.value,
         )
     elif isinstance(gr_cmp, gr.Number):
         harp_cmp = HarpNumberBox(
             label=gr_cmp.label,
             value=gr_cmp.value,
             minimum=gr_cmp.minimum,
-            maximum=gr_cmp.maximum
+            maximum=gr_cmp.maximum,
+            required=gr_cmp.is_harp_required
         )
     else:
         raise ValueError(
@@ -214,3 +246,5 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     }
 
     return app
+
+extend_gradio()
