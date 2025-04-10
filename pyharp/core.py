@@ -20,14 +20,15 @@ class ModelCard:
 @dataclass
 class HarpComponent:
     label: str
-    required: bool = True
 
 @dataclass
 class HarpAudioTrack(HarpComponent):
+    required: bool
     type: str = "audio_track"
 
 @dataclass
 class HarpMidiTrack(HarpComponent):
+    required: bool
     type: str = "midi_track"
 
 @dataclass
@@ -74,19 +75,15 @@ def extend_gradio():
     so we add it at the end of core.py
 
     The developer can use it like:
-    gr.Audio(type="filepath", label="Input Audio A").harp_required(True),
+    gr.Audio(type="filepath", label="Input Audio A").harp_required(False),
     """
     
     def harp_required(self, required=True):
         self.is_harp_required = required
         return self
-    def is_harp_required(self):
-        # Default to True
-        # if not set by the user
-        return getattr(self, "_is_harp_required", True)
         
     Component.harp_required = harp_required
-    Component.is_harp_required = property(is_harp_required)
+    Component.is_harp_required = True
 
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
@@ -121,31 +118,27 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             label=gr_cmp.label,
             value=gr_cmp.value,
             step=gr_cmp.step,
-            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Textbox):
         harp_cmp = HarpTextBox(
             label=gr_cmp.label,
             value=gr_cmp.value,
-            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Checkbox):
         harp_cmp = HarpToggle(
             label=gr_cmp.label,
             value=gr_cmp.value,
-            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Dropdown):
         harp_cmp = HarpDropdown(
             label=gr_cmp.label,
             choices=gr_cmp.choices,
             value=gr_cmp.value,
-            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.JSON):
         harp_cmp = HarpJSON(
             label=gr_cmp.label,
-            value=gr_cmp.value,
+            # value=gr_cmp.value,
         )
     elif isinstance(gr_cmp, gr.Number):
         harp_cmp = HarpNumberBox(
@@ -153,7 +146,6 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             value=gr_cmp.value,
             minimum=gr_cmp.minimum,
             maximum=gr_cmp.maximum,
-            required=gr_cmp.is_harp_required
         )
     else:
         raise ValueError(
