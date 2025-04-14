@@ -2,14 +2,14 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyharp',
-    version='0.2.0',
+    version='0.2.1',
     url='https://github.com/TEAMuP-dev/pyharp',
     author='Hugo Flores García, Christos Benetatos, Patrick O\'Reilly and Aldo Aguilar',
     author_email='hugofloresgarcia@u.northwestern.edu',
     description='',
     packages=find_packages(),
     install_requires=[
-        'gradio==5.24.0',
+        'gradio==5.23.2',
         'descript-audiotools',
         'symusic'
     ]
