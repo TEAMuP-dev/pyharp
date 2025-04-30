@@ -115,6 +115,7 @@ def get_control(cmp: Component) -> Control:
             value=cmp.value
         )
     elif isinstance(cmp, gr.Dropdown):
+        # TODO - currently no support for multiselect
         ctrl = DropdownControl(
             label=cmp.label,
             choices=cmp.choices,

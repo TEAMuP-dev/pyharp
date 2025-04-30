@@ -35,8 +35,25 @@ def process_fn(input_audio_path, pitch_shift_amount):
 
     output_audio_path = save_audio(sig)
 
-    # No output labels
     output_labels = LabelList()
+
+    max_val = sig.numpy().mean(0).mean(0).max()
+    max_t = sig.numpy().mean(0).mean(0).argmax() / sig.sample_rate
+    output_labels.append(AudioLabel(t=max_t, label='max', amplitude=max_val))
+
+    min_val = sig.numpy().mean(0).mean(0).min()
+    min_t = sig.numpy().mean(0).mean(0).argmin() / sig.sample_rate
+    output_labels.append(AudioLabel(
+        t=min_t,
+        label='min',
+        description='this is the lowest amplitude in the audio waveform',
+        amplitude=min_val,
+        duration=2.0,
+        color=OutputLabel.rgb_color_to_int(0, 128, 145, 0.8),
+        link="https://www.google.com/"
+    ))
+
+    output_labels.append(AudioLabel(t=1, label='1 sec'))
 
     return output_audio_path, output_labels
 
