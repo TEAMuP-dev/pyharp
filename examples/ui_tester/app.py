@@ -32,7 +32,8 @@ def download_from_github(url, file_extension):
 # Create a ModelCard
 model_card = ModelCard(
     name="UI Test for HARP 3.0.0",
-    description="A demo of labels and all the input controls suppoerted in HARP",
+    description=\
+        '''This is a test for the new UI features in HARP 3.0.0. The audio input is not used. You can click "process" without loading an audio file. Use the "Dropdown 1" to select the output audio file. The audio labels are added at 0%, 50%, and 100% - 1sec of the audio duration and 0, 0.5, and 1 of the amplitude.''',
     author="TeamUP",
     tags=["example", "ui", "test"],
 )
@@ -57,18 +58,18 @@ def process_fn(
     if isinstance(slider_1_time_sleep, torch.Tensor):
         slider_1_time_sleep = slider_1_time_sleep.long().item()
     
-    # # Create dummy output files
-    # # midi = load_midi("../HARP/test.mid")
-    # midi = load_midi("https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/test.mid")
+    # # # Create dummy output files
+    # midi = load_midi("../HARP/test/test.mid")
+    # # midi = load_midi("https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/test.mid")
     # output_midi_path = save_midi(midi)
 
-    # # audio_file = load_audio("../wav-numbers/0.wav")
-    # audio = load_audio("../HARP/test-w-gap.wav")
+    # # # audio_file = load_audio("../wav-numbers/0.wav")
+    # audio = load_audio("../HARP/test/5-second.mp3")
     # output_audio_path = save_audio(audio)
 
     # Ignore uploaded files and use hardcoded GitHub URLs
     midi_url = "https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/test.mid"
-    audio_url = "https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/test-w-gap.wav"
+    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/{dropdown_1}"
     
     # Download to local temporary files
     local_midi_path = download_from_github(midi_url, ".mid")
@@ -114,7 +115,6 @@ def process_fn(
                 pitch=76,
             ),
             MidiLabel(0, "over1", 1, "an overhead label", OutputLabel.rgb_color_to_int(255, 255, 0)),
-            # MidiLabel(5, "over1", 0.5, "an overhead label", 0),
             MidiLabel(1.5, "over1", 0.1, "an overhead label", OutputLabel.rgb_color_to_int(0, 255, 255)),
         ]
     )
@@ -127,24 +127,32 @@ def process_fn(
     output_labels.labels.extend(
         [
             AudioLabel( 
-                t=8, 
-                label="l-t8-a05", 
+                t=0, 
+                label="t0-a0", 
                 duration=1, 
                 description=descr_1,
-                color=0, 
+                color=OutputLabel.rgb_color_to_int(28, 102, 48), 
+                link="https://docs.juce.com/master/classComponent.html", 
+                amplitude=0),
+            AudioLabel( 
+                t=duration/2, 
+                label="t05-a05", 
+                duration=1, 
+                description=descr_2,
+                color=OutputLabel.rgb_color_to_int(102, 28, 48), 
                 link="https://docs.juce.com/master/classComponent.html", 
                 amplitude=0.5),
             AudioLabel( 
-                t=0, 
-                label="l-t0-a00", 
+                t=duration - 1, 
+                label="t1-a1", 
                 duration=1, 
-                description=descr_2,
-                color=3, 
+                description=descr_3,
+                color=OutputLabel.rgb_color_to_int(48, 102, 28),
                 link="https://docs.juce.com/master/classComponent.html", 
-                amplitude=0),
+                amplitude=1),
             AudioLabel( 0, "over1", 1, descr_3, OutputLabel.rgb_color_to_int(0, 255, 0), link="https://docs.juce.com/master/classComponent.html"),
-            AudioLabel( 5, "over2", 0.5, descr_4, OutputLabel.rgb_color_to_int(255, 0, 0), link="https://docs.juce.com/master/classComponent.html"),
-            AudioLabel( 10, "over3", 0.1, "an overhead label", OutputLabel.rgb_color_to_int(0, 0, 255), link="https://docs.juce.com/master/classComponent.html"),
+            AudioLabel( duration/2, "over2", 0.5, descr_4, OutputLabel.rgb_color_to_int(255, 0, 0), link="https://docs.juce.com/master/classComponent.html"),
+            AudioLabel( duration, "over3", 0.1, "an overhead label", OutputLabel.rgb_color_to_int(0, 0, 255), link="https://docs.juce.com/master/classComponent.html"),
         ]
     )
 
@@ -187,9 +195,10 @@ with gr.Blocks() as demo:
             label="Slider 3"
         ),
         gr.Dropdown(
-            choices=["zero", "half", "full"], 
+            choices=["sad-cry.wav", "5-second.mp3", "Guiro.wav", "Claves.wav",
+                     "test.wav", "test-w-gap.wav", "test-w-gap-stereo.wav"],
             label="Dropdown 1",
-            value="zero"
+            value="5-second.mp3"
         ),
         gr.Dropdown(
             choices=["choice1", "choice2"], 
