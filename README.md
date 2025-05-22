@@ -26,9 +26,9 @@ cd pyharp
 ```
 
 ## Examples
-We provide several examples of how to create a PyHARP app under the `examples/` directory, along with a [template](examples/template/) for new apps. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#available-models).
+We provide several examples of how to create a PyHARP app under the `examples/` directory, along with a [template](https://github.com/TEAMuP-dev/pyharp/tree/main/examples/templates) for new apps. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#available-models).
 
-In order to run an app, you will need to install its corresponding dependencies. For example, to install the dependences for our [pitch shifter](examples/pitch_shifter/) example:
+In order to run an app, you will need to install its corresponding dependencies. For example, to install the dependences for our [pitch shifter]([examples/pitch_shifter/](https://github.com/TEAMuP-dev/pyharp/tree/main/examples/pitch_shifter)) example:
 
 ```bash
 pip install -r examples/pitch_shifter/requirements.txt
