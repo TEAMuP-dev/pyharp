@@ -44,12 +44,12 @@ This will create a local Gradio endpoint at the URL `http://localhost:<PORT>`, a
 
 Below, you can see an example command line output after running `app.py`. It shows both the local endpoint (local URL) and the forwarded enpoint (public URL)
 
-![example commandline output for deplying a gradio app.py](images/example_gradio.png)
+![example commandline output for deplying a gradio app.py](https://github.com/user-attachments/assets/6d27b6eb-9cf3-4f45-badc-9547b24f2091)
+
 
 You can see your Gradio app in HARP by loading either the local URL or public URL as a custom path in HARP, as is shown below.
 
-![example commandline output for deplying a gradio app.py](images/custom_gradio_endpoint_in_harp.png)
-
+![example commandline output for deplying a gradio app.py](https://github.com/user-attachments/assets/44ef5c6d-582a-4848-9988-cba3ca4ab941)
 
 ## Hosting Endpoints
 Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
