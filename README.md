@@ -75,8 +75,8 @@ Here are a few tips and best-practices when dealing with HuggingFace Spaces:
 - An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
 - A `README.md` file with metadata will be created automatically when a Space is initialized
   - This file also controls the Gradio version used for the Space
-  - HARP does not currently support the latest version of Gradio
-    - We recommend using __version 4.7.1__ at this time
+  - HARP may not work with the very latest or earlier versions of Gradio
+    - We recommend using __5.28.0__ at this time
 - A `requirements.txt` file specifying all dependencies must be included for a Space to work properly
 - A `.gitignore` file should be added to maintain repository orderliness (_e.g._ to ignore `src/_outputs`)
 

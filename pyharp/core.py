@@ -130,6 +130,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             value=gr_cmp.value,
         )
     elif isinstance(gr_cmp, gr.Dropdown):
+        # TODO - currently no support for multiselect
         harp_cmp = HarpDropdown(
             label=gr_cmp.label,
             choices=gr_cmp.choices,

@@ -41,7 +41,7 @@ def process_fn(input_midi_path):
     # Perform a trivial operation (i.e. gain)
     for t in midi.tracks:
         for n in t.notes:
-            n.velocity = min(127, int(1.25 * n.velocity))
+            n.velocity = min(127, n.velocity + 10)
     """
 
     """
@@ -52,17 +52,8 @@ def process_fn(input_midi_path):
 
     """
     <YOUR LABELING CODE HERE>
-    # Initialize empty list
+    # No output labels
     output_labels = LabelList()
-
-    # Create a label for each note
-    for t in midi.tracks:
-        for n in t.notes:
-            start = get_tick_time_in_seconds(n.time, midi)
-            duration = get_tick_time_in_seconds(n.time + n.duration, midi)
-
-            output_labels.append(
-                MidiLabel(t=start, label=f'Vel. {n.velocity}', pitch=n.pitch + 0.5, duration=duration))
     """
 
     return output_midi_path, output_labels
