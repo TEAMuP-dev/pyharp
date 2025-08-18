@@ -20,6 +20,7 @@ class ModelCard:
 @dataclass
 class HarpComponent:
     label: str
+    info: str
 
 @dataclass
 class HarpAudioTrack(HarpComponent):
@@ -103,13 +104,15 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpAudioTrack(
             label=gr_cmp.label,
-            required=gr_cmp.is_harp_required,
+            info=None,
+            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
         assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpMidiTrack(
             label=gr_cmp.label,
-            required=gr_cmp.is_harp_required,
+            info=None,
+            required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Slider):
         harp_cmp = HarpSlider(
@@ -118,16 +121,19 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             label=gr_cmp.label,
             value=gr_cmp.value,
             step=gr_cmp.step,
+            info=gr_cmp.info
         )
     elif isinstance(gr_cmp, gr.Textbox):
         harp_cmp = HarpTextBox(
             label=gr_cmp.label,
             value=gr_cmp.value,
+            info=gr_cmp.info
         )
     elif isinstance(gr_cmp, gr.Checkbox):
         harp_cmp = HarpToggle(
             label=gr_cmp.label,
             value=gr_cmp.value,
+            info=gr_cmp.info
         )
     elif isinstance(gr_cmp, gr.Dropdown):
         # TODO - currently no support for multiselect
@@ -135,10 +141,12 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             label=gr_cmp.label,
             choices=gr_cmp.choices,
             value=gr_cmp.value,
+            info=gr_cmp.info
         )
     elif isinstance(gr_cmp, gr.JSON):
         harp_cmp = HarpJSON(
             label=gr_cmp.label,
+            info=gr_cmp.info,
             # value=gr_cmp.value,
         )
     elif isinstance(gr_cmp, gr.Number):
@@ -147,6 +155,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             value=gr_cmp.value,
             minimum=gr_cmp.minimum,
             maximum=gr_cmp.maximum,
+            info=gr_cmp.info
         )
     else:
         raise ValueError(
