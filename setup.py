@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyharp',
-    version='0.2.1',
+    version='0.3.0',
     url='https://github.com/TEAMuP-dev/pyharp',
     author='Hugo Flores García, Christos Benetatos, Patrick O\'Reilly and Aldo Aguilar',
     author_email='hugofloresgarcia@u.northwestern.edu',

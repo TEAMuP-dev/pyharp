@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from datetime import datetime
 import symusic
 
 
@@ -27,7 +27,7 @@ def load_midi(input_midi_path):
     return midi
 
 
-def save_midi(midi, output_midi_path=None):
+def save_midi(midi, output_midi_path=None) -> str:
     """
     Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
 
@@ -41,11 +41,23 @@ def save_midi(midi, output_midi_path=None):
 
     assert isinstance(midi, symusic.Score), "Default loading only supports instances of symusic.Score."
 
+    # An experiment - adding a timestamp to the filename
+    # I had some issues in HARP. If you want timestamps, uncomment this line
+    # not sure if it makes sense to have a timestamp in the filename
+    # or if it should be added in the HARP side. 
+    # timestamp = f"_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    timestamp = "" 
+
     if output_midi_path is None:
         output_dir = Path("_outputs")
         output_dir.mkdir(exist_ok=True)
-        output_midi_path = output_dir / "output.mid"
+        output_midi_path = output_dir / f"output{timestamp}.mid"
         output_midi_path = output_midi_path.absolute().__str__()
+    else:
+        # Add timestamp to the provided path
+        path_obj = Path(output_midi_path)
+        output_midi_path = path_obj.parent / f"{path_obj.stem}{timestamp}{path_obj.suffix}"
+        output_midi_path = str(output_midi_path)
 
     midi.dump_midi(output_midi_path)
 
