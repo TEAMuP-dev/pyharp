@@ -20,7 +20,7 @@ class ModelCard:
 @dataclass
 class HarpComponent:
     label: str
-
+    info: str
 
 @dataclass
 class HarpAudioTrack(HarpComponent):
@@ -39,26 +39,22 @@ class HarpSlider(HarpComponent):
     step: float
     value: float
     type: str = "slider"
-    info: str = ""
 
 @dataclass
 class HarpTextBox(HarpComponent):
     value: str
     type: str = "text_box"
-    info: str = ""
 
 @dataclass
 class HarpToggle(HarpComponent):
     value: bool
     type: str = "toggle"
-    info: str = ""
 
 @dataclass
 class HarpDropdown(HarpComponent):
     choices: List[str]
     value: str
     type: str = "dropdown"
-    info: str = ""
 
 @dataclass
 class HarpNumberBox(HarpComponent):
@@ -66,12 +62,10 @@ class HarpNumberBox(HarpComponent):
     maximum: float
     value: bool
     type: str = "number_box"
-    info: str = ""
 
 @dataclass
 class HarpJSON(HarpComponent):
     type: str = "json"
-    info: str = ""
 
 def extend_gradio():
     """
@@ -110,12 +104,14 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpAudioTrack(
             label=gr_cmp.label,
+            info=None,
             required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
         assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpMidiTrack(
             label=gr_cmp.label,
+            info=None,
             required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Slider):
@@ -150,6 +146,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     elif isinstance(gr_cmp, gr.JSON):
         harp_cmp = HarpJSON(
             label=gr_cmp.label,
+            info=gr_cmp.info,
             # value=gr_cmp.value,
         )
     elif isinstance(gr_cmp, gr.Number):
