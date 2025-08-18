@@ -5,5 +5,4 @@ _outputs
 .idea
 .vscode
 examples/**/.git/
-examples/MusicGen
 .gradio
