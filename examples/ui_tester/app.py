@@ -68,8 +68,8 @@ def process_fn(
     # output_audio_path = save_audio(audio)
 
     # Ignore uploaded files and use hardcoded GitHub URLs
-    midi_url = "https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/test.mid"
-    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/cb/gen-inputs/test/{dropdown_1}"
+    midi_url = "https://github.com/TEAMuP-dev/HARP/blob/develop/test/test.mid"
+    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/develop/test/{dropdown_1}"
     
     # Download to local temporary files
     local_midi_path = download_from_github(midi_url, ".mid")
@@ -178,7 +178,8 @@ with gr.Blocks() as demo:
             maximum=100, 
             step=1, 
             value=1, 
-            label="Time delay (s)"
+            label="Time delay (s)",
+            info="slider1"
         ),
         gr.Slider(
             minimum=100, 
@@ -192,22 +193,26 @@ with gr.Blocks() as demo:
             maximum=100, 
             step=1, 
             value=50, 
-            label="Slider 3"
+            label="Slider 3",
+            info="slider3"
         ),
         gr.Dropdown(
             choices=["sad-cry.wav", "5-second.mp3", "Guiro.wav", "Claves.wav",
                      "test.wav", "test-w-gap.wav", "test-w-gap-stereo.wav"],
             label="Dropdown 1",
-            value="5-second.mp3"
+            value="5-second.mp3",
+            info="dropdown1"
         ),
         gr.Dropdown(
             choices=["choice1", "choice2"], 
             label="Dropdown 2",
-            value="choice2"
+            value="choice2",
+            info="dropdown2"
         ),
         gr.Checkbox(
             label="Checkbox 1",
-            value=True
+            value=True,
+            info="checkbox1"
         ),
         gr.Checkbox(
             label="Checkbox 2",
@@ -215,13 +220,14 @@ with gr.Blocks() as demo:
         ),
         gr.Checkbox(
             label="Checkbox 3",
-            value=True
+            value=True,
+            info="checkbox1"
         ),
         gr.Textbox(
             label="Input Text Prompt",
             value="Hello World",
-        ),
-
+            info="textbox"
+        )
     ]
 
     output_components = [

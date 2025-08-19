@@ -26,7 +26,8 @@ cd pyharp
 ```
 
 ## Examples
-We provide several examples of how to create a PyHARP app under the `examples/` directory, along with a [template](examples/template/) for new apps. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#available-models).
+<!--TODO - link to full list on dedicated webpage-->
+We provide several examples of how to create a PyHARP app under the `examples/` directory. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#available-models).
 
 In order to run an app, you will need to install its corresponding dependencies. For example, to install the dependences for our [pitch shifter](examples/pitch_shifter/) example:
 
@@ -44,15 +45,17 @@ This will create a local Gradio endpoint at the URL `http://localhost:<PORT>`, a
 
 Below, you can see an example command line output after running `app.py`. It shows both the local endpoint (local URL) and the forwarded enpoint (public URL)
 
+<!--TODO - updated screenshot-->
 ![example commandline output for deploying a gradio app.py](https://github.com/user-attachments/assets/6d27b6eb-9cf3-4f45-badc-9547b24f2091)
 
 
 You can see your Gradio app in HARP by loading either the local URL or public URL as a custom path in HARP, as is shown below.
 
+<!--TODO - updated screenshot-->
 ![example commandline output for deploying a gradio app.py](https://github.com/user-attachments/assets/44ef5c6d-582a-4848-9988-cba3ca4ab941)
 
 ## Hosting Endpoints
-Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can leverage [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
+Automatically generated Gradio endpoints are only available for 72 hours. If you'd like to keep the endpoint active and share it with other users, you can use [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely:
 
 1. Create a new [HuggingFace Space](https://huggingface.co/new-space)
 2. Clone the initialized repository locally:
@@ -78,7 +81,7 @@ Here are a few tips and best-practices when dealing with HuggingFace Spaces:
   - HARP may not work with the very latest or earlier versions of Gradio
     - We recommend using __5.28.0__ at this time
 - A `requirements.txt` file specifying all dependencies must be included for a Space to work properly
-- A `.gitignore` file should be added to maintain repository orderliness (_e.g._ to ignore `src/_outputs`)
+- A `.gitignore` file should be added to maintain repository orderliness (_e.g._, to ignore `src/_outputs`)
 
 ## Deploying to HARP
 PyHARP apps can be accessed from [within HARP](https://github.com/TEAMuP-dev/HARP#available-models) through the local or forwarded URL corresponding to their active Gradio endpoints ([see above](#examples)), or the URL corresponding to their dedicated hosting service ([see above](#hosting-endpoints)), if applicable.
