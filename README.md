@@ -43,13 +43,13 @@ python examples/pitch_shifter/app.py
 
 This will create a local Gradio endpoint at the URL `http://localhost:<PORT>`, as well as a forwarded public Gradio endpoint at the URL `https://<RANDOM_ID>.gradio.live/`.
 
-Below, you can see an example command line output after running `app.py`. It shows both the local endpoint (local URL) and the forwarded enpoint (public URL)
+Below, you can see example command line output after running `app.py`. Both the local endpoint (local URL) and the forwarded endpoint (public URL) are shown:
 
 <!--TODO - updated screenshot-->
 ![example commandline output for deploying a gradio app.py](https://github.com/user-attachments/assets/6d27b6eb-9cf3-4f45-badc-9547b24f2091)
 
 
-You can see your Gradio app in HARP by loading either the local URL or public URL as a custom path in HARP, as is shown below.
+The Gradio app can be loaded in HARP as a custom path using either the local or public URL, as shown below.
 
 <!--TODO - updated screenshot-->
 ![example commandline output for deploying a gradio app.py](https://github.com/user-attachments/assets/44ef5c6d-582a-4848-9988-cba3ca4ab941)
@@ -99,16 +99,14 @@ from pyharp import ModelCard
 
 model_card = ModelCard(
     name="Pitch Shifter",
-    description="A pitch shifting example for HARP.",
-    author="Hugo Flores Garcia",
-    tags=["example", "pitch shift"],
-    midi_in=False,
-    midi_out=False
+    description="A pitch shifting example for HARP v3.",
+    author="TEAMuP",
+    tags=["example", "pitch shift", 'v3'],
 )
 ```
 
 ## Processing Code
-In PyHARP, arbitrary audio processing code is wrapped within a single function `process_fn`, for use with Gradio. The function should accept as an argument a path for input audio and should return a single path for output audio. Additional input arguments associated with the values of any [Gradio Components](https://www.gradio.app/docs/gradio/introduction) used as GUI controls can also be given.
+In PyHARP, arbitrary audio processing code is wrapped within a single function `process_fn` for use with Gradio. The function arguments and return values should match the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) defined under the main Gradio code block ([see below](#gradio-endpoint)).
 
 <!--
 This could be a source separation model, a text-to-music generation model, a music inpainting system, a librosa processing routine, etc.
@@ -116,44 +114,46 @@ This could be a source separation model, a text-to-music generation model, a mus
 
 The following processing code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
-from pyharp import load_audio, save_audio, OutputLabel, LabelList
+from pyharp import load_audio, save_audio
 
 import torchaudio
 import torch
 
 
 @torch.inference_mode()
-def process_fn(input_audio_path, pitch_shift_amount):
+def process_fn(
+    input_audio_path: str,
+    pitch_shift_amount: int
+)-> str:
+
+    pitch_shift_amount = int(pitch_shift_amount)
+
     sig = load_audio(input_audio_path)
 
     ps = torchaudio.transforms.PitchShift(
         sig.sample_rate,
-        n_steps=pitch_shift_amount, 
-        bins_per_octave=12, 
+        n_steps=pitch_shift_amount,
+        bins_per_octave=12,
         n_fft=512
-    ) 
+    )
     sig.audio_data = ps(sig.audio_data)
 
-    output_audio_path = save_audio(sig)
+    output_audio_path = str(save_audio(sig))
 
-    output_labels = LabelList()
-    output_labels.append(OutputLabel(label='short label', t=0.0, description='longer description'))
-
-    return output_audio_path, output_labels
+    return output_audio_path
 ```
 
 The function takes two arguments:
 - `input_audio_path`: the filepath of the audio to process
-- `pitch_shift`: the amount to pitch shift by (in semitones)
+- `pitch_shift_amount`: the amount to pitch shift by (in semitones)
 
 and returns:
 - `output_audio_path`: the filepath of the processed audio
-- `output_labels`: any labels to display
 
 Note that this code uses the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)).
 
 ## Gradio Endpoint
-The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction), which should include an [Audio](https://www.gradio.app/docs/gradio/audio) component for both the input and output, and launching the endpoint. The `build_endpoint` function connects the components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to include in the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider) and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls.
+The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to include in the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls.
 
 The following endpoint code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
@@ -162,33 +162,103 @@ from pyharp import build_endpoint
 import gradio as gr
 
 
+# Build Gradio endpoint
 with gr.Blocks() as demo:
-    # Define the Gradio interface
-    components = [
+    # Define input Gradio Components
+    input_components = [
+        gr.Audio(type="filepath",
+                 label="Input Audio A")
+        .harp_required(True),
         gr.Slider(
-            minimum=-24, 
-            maximum=24, 
-            step=1, 
-            value=7, 
-            label="Pitch Shift (semitones)"
+            minimum=-24,
+            maximum=24,
+            step=1,
+            value=7,
+            label="Pitch Shift (semitones)",
+            info="Controls the amount of pitch shift in semitones"
         ),
     ]
 
+    # Define output Gradio Components
+    output_components = [
+        gr.Audio(type="filepath",
+                 label="Output Audio")
+        .set_info("The pitch-shifted audio."),
+    ]
+
     # Build a HARP-compatible endpoint
-    app = build_endpoint(model_card=model_card,
-                         components=components,
-                         process_fn=process_fn)
+    app = build_endpoint(
+        model_card=model_card,
+        input_components=input_components,
+        output_components=output_components,
+        process_fn=process_fn,
+    )
 
-demo.queue()  # see the NOTE below
-demo.launch(share=True)
+demo.queue().launch(share=True, show_error=False, pwa=True) # see the third NOTE below
 ```
-**NOTE**: Make sure the order of the inputs matches the order of the arguments in `process_fn`. 
+**NOTE (1):** All of the `gr.Audio` components MUST have `type="filepath"` in order to work with HARP.
 
-**NOTE**: All of the `gr.Audio` components MUST have `type="filepath"` in order to work with HARP.
+**NOTE (2):** Make sure the order of the inputs / output matches the order of the arguments / return values in `process_fn`.
 
-**NOTE**: In order to be able to cancel an ongoing processing job within HARP, queueing in Gradio needs to be enabled by calling `demo.queue()`.
+**NOTE (3):** In order to be able to cancel an ongoing processing job within HARP, queueing in Gradio needs to be enabled by calling `demo.queue()`.
+
+**NOTE (4):** Input Audio and File components can be registered as optional in HARP using `.harp_required(False)`.
+
+**NOTE (5):** All Audio and File components can be extended with the `info` attribute to define instructions to display in HARP using our `set_info` function.
+
+## Output Labels
+In order to display output labels in HARP, you must define an output JSON component and return our custom ```LabelList``` object in ```process_fn```:
+```python
+from pyharp import LabelList, AudioLabel, MidiLabel, OutputLabel, ...
+
+import gradio as gr
+
+...
+
+@torch.inference_mode()
+def process_fn(...):
+    ...
+
+    output_labels = LabelList()
+
+    output_labels.labels.extend(
+        [
+            AudioLabel(
+                t=0.0, # seconds
+                label="audio label",
+                # The following are optional:
+                duration=1.0, # seconds
+                description="long description",
+                color=OutputLabel.rgb_color_to_int(255, 255, 255, 0.5),
+                amplitude=0), # vertical positioning
+            ...,
+            MidiLabel(
+                t=0.0, # seconds
+                label="MIDI label",
+                # The following are optional:
+                duration=1.0, # seconds
+                description="long description",
+                link="https://github.com/TEAMuP-dev/pyharp",
+                pitch=60), # vertical positioning
+            ...
+        ]
+    )
+
+    return ..., output_labels
+
+with gr.Blocks() as demo:
+
+    ...
+
+    output_components = [
+        ...,
+        gr.JSON(label="Output Labels")
+    ]
+
+    ...
+```
 
 ## Pre-Trained Models
 If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
-- Load the model outside of `process_fn`, so that it is only initialized once
+- Load the model outside of `process_fn` so that it is only initialized once
 - Store model weights within your app repository using [Git Large File Storage](https://git-lfs.com/)

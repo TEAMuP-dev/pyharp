@@ -27,13 +27,14 @@ def load_midi(input_midi_path):
     return midi
 
 
-def save_midi(midi, output_midi_path=None) -> str:
+def save_midi(midi, output_midi_path=None, include_timestamp=False) -> str:
     """
     Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
 
     Args:
         midi (symusic.Score): wrapped midi data.
         output_midi_path (str): the filepath to use to save the MIDI.
+        include_timestamp (bool): whether to include a timestamp in the filename.
 
     Returns:
         output_midi_path (str): the filepath of the saved MIDI.
@@ -41,12 +42,7 @@ def save_midi(midi, output_midi_path=None) -> str:
 
     assert isinstance(midi, symusic.Score), "Default loading only supports instances of symusic.Score."
 
-    # An experiment - adding a timestamp to the filename
-    # I had some issues in HARP. If you want timestamps, uncomment this line
-    # not sure if it makes sense to have a timestamp in the filename
-    # or if it should be added in the HARP side. 
-    # timestamp = f"_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    timestamp = "" 
+    timestamp = f"_{datetime.now().strftime('%Y%m%d_%H%M%S')}" if include_timestamp else ""
 
     if output_midi_path is None:
         output_dir = Path("_outputs")
