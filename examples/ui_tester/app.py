@@ -171,7 +171,7 @@ def process_fn(
 with gr.Blocks() as demo:
     # Define Gradio Components
     input_components = [
-        gr.Audio(type="filepath", label="Optional AudioInp").harp_required(False),
+        gr.Audio(type="filepath", label="Optional AudioInp").harp_required(False).set_info('this is an optional input track'),
         # gr.File(type="filepath", label="Input Midi", file_types=[".mid", ".midi"]).harp_required(False),
         gr.Slider(
             minimum=1, 

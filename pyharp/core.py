@@ -3,7 +3,6 @@ from dataclasses import dataclass, asdict
 from typing import List
 
 import gradio as gr
-import inspect
 
 __all__ = [
     'ModelCard',
@@ -82,9 +81,16 @@ def extend_gradio():
     def harp_required(self, required=True):
         self.is_harp_required = required
         return self
-        
+
     Component.harp_required = harp_required
     Component.is_harp_required = True
+
+    def set_info(self, info):
+        self.info = info
+        return self
+
+    Component.set_info = set_info
+    Component.info = None
 
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
@@ -104,14 +110,14 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpAudioTrack(
             label=gr_cmp.label,
-            info=None,
+            info=gr_cmp.info,
             required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
         assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpMidiTrack(
             label=gr_cmp.label,
-            info=None,
+            info=gr_cmp.info,
             required=gr_cmp.is_harp_required
         )
     elif isinstance(gr_cmp, gr.Slider):
