@@ -6,14 +6,16 @@ import gradio as gr
 # Create a ModelCard
 model_card = ModelCard(
     name='MIDI Pitch Shifter',
-    description="A MIDI pitch shifting example for HARP.",
-    author='xribene',
+    description="A MIDI pitch shifting example for HARP v3.",
+    author='TEAMuP',
     tags=["example", "midi", "pitch shift", "v3"]
 )
 
-
 # Define the process function
-def process_fn(input_midi_path, pitch_shift_amount):
+def process_fn(
+    input_midi_path: str,
+    pitch_shift_amount: int
+) -> str:
 
     midi = load_midi(input_midi_path)
 
@@ -21,27 +23,37 @@ def process_fn(input_midi_path, pitch_shift_amount):
         for n in t.notes:
             n.pitch += int(pitch_shift_amount)
     
-    output_midi_path = save_midi(midi, None)
+    output_midi_path = str(save_midi(midi))
 
-    return str(output_midi_path)
-
+    return output_midi_path
 
 # Build Gradio endpoint
 with gr.Blocks() as demo:
-    # Define Gradio Components
+    # Define input Gradio Components
     input_components = [
-        # Using the .harp_required(True) method to make the input required
-        # meaning that HARP won't allow processing without this input
-        gr.File(type="filepath", label="Input Midi", file_types=[".mid", ".midi"]).harp_required(True),
+        gr.File(type="filepath",
+                label="Input Midi",
+                file_types=[".mid", ".midi"])
+        .harp_required(True),
         gr.Slider(
-            minimum=-24, maximum=24, step=1, value=7, label="Pitch Shift (semitones)"
+            minimum=-24,
+            maximum=24,
+            step=1,
+            value=7,
+            label="Pitch Shift (semitones)",
+            info="Controls the amount of pitch shift in semitones"
         ),
     ]
 
+    # Define output Gradio Components
     output_components = [
-        gr.File(type="filepath", label="Output Midi", file_types=[".mid", ".midi"]),
+        gr.File(type="filepath",
+                label="Output Midi",
+                file_types=[".mid", ".midi"])
+        .set_info("The pitch-shifted MIDI."),
     ]
 
+    # Build a HARP-compatible endpoint
     app = build_endpoint(
         model_card=model_card,
         input_components=input_components,
@@ -49,5 +61,4 @@ with gr.Blocks() as demo:
         process_fn=process_fn,
     )
 
-demo.queue()
-demo.launch(share=True, show_error=True)
+demo.queue().launch(share=True, show_error=False, pwa=True)
