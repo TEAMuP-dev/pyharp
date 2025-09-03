@@ -230,7 +230,8 @@ def process_fn(...):
                 duration=1.0, # seconds
                 description="long description",
                 color=OutputLabel.rgb_color_to_int(255, 255, 255, 0.5),
-                amplitude=0), # vertical positioning
+                amplitude=0 # vertical positioning
+            ),
             ...,
             MidiLabel(
                 t=0.0, # seconds
@@ -239,7 +240,8 @@ def process_fn(...):
                 duration=1.0, # seconds
                 description="long description",
                 link="https://github.com/TEAMuP-dev/pyharp",
-                pitch=60), # vertical positioning
+                pitch=60 # vertical positioning
+            ),
             ...
         ]
     )
