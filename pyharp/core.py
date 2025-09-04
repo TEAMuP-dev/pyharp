@@ -4,6 +4,7 @@ from typing import List
 
 import gradio as gr
 
+
 __all__ = [
     'ModelCard',
     'build_endpoint'
@@ -68,14 +69,14 @@ class HarpJSON(HarpComponent):
 
 def extend_gradio():
     """
-    A hacky way to extend a Gradio component
-    with any HARP-specific attributes.
+    A hacky way to extend Gradio components with HARP-specific attributes.
+    This needs to be called when importing pyharp, so we invoke it at the
+    end of core.py.
 
-    This needs to be called when importing pyharp
-    so we add it at the end of core.py
-
-    The developer can use it like:
-    gr.Audio(type="filepath", label="Input Audio A").harp_required(False),
+    This enables the following types of interactions:
+        `gr.Audio(...).harp_required(False)`,
+        `gr.File(...).set_info("Output MIDI.")`,
+        etc.
     """
     
     def harp_required(self, required=True):
@@ -107,14 +108,17 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
 
     if isinstance(gr_cmp, gr.Audio):
-        assert gr_cmp.type == "filepath", f"Audio input must be of type filepath, not {gr_cmp.type}"
+        assert gr_cmp.type == "filepath", \
+            f"Audio input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpAudioTrack(
             label=gr_cmp.label,
             info=gr_cmp.info,
             required=gr_cmp.is_harp_required
         )
-    elif isinstance(gr_cmp, gr.File) and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
-        assert gr_cmp.type == "filepath", f"File input must be of type filepath, not {gr_cmp.type}"
+    elif isinstance(gr_cmp, gr.File) \
+          and('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
+        assert gr_cmp.type == "filepath", \
+            f"File input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpMidiTrack(
             label=gr_cmp.label,
             info=gr_cmp.info,
@@ -152,8 +156,8 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     elif isinstance(gr_cmp, gr.JSON):
         harp_cmp = HarpJSON(
             label=gr_cmp.label,
-            info=gr_cmp.info,
-            # value=gr_cmp.value,
+            info=gr_cmp.info
+            #value=gr_cmp.value,
         )
     elif isinstance(gr_cmp, gr.Number):
         harp_cmp = HarpNumberBox(
@@ -165,7 +169,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         )
     else:
         raise ValueError(
-            f"HARP does not support provided {gr_cmp} component. Please remove it or use an alternative."
+            f"HARP does not support provided \'{gr_cmp}\' component. Please remove it or use an alternative."
         )
 
     return harp_cmp
@@ -177,42 +181,49 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
 
     Args:
         model_card (ModelCard): A ModelCard object describing the model.
-        components (Union[list]): Gradio input widgets.
-            NOTE: It's crucial that the order of inputs matches the order in the Gradio UI
-            to ensure proper alignment when communicating with the HARP client. Currently,
-            HARP supports gr.Slider, gr.Textbox, and gr.Audio widgets as inputs.
+        input_components (list): Gradio input widgets.
+            - It's crucial that the order of inputs matches the order in the Gradio
+              UI to ensure proper alignment when communicating with the HARP client.
+            - Currently, HARP supports gr.Audio, gr.File(file_types=[".mid", ".midi"]),
+              gr.Slider, gr.Checkbox, gr.Number, gr.Dropdown, and gr.Textbox widgets as
+              inputs.
+        output_components (list): Gradio output widgets.
+            - It's crucial that the order of outputs matches the order in the Gradio
+              UI to ensure proper alignment when communicating with the HARP client.
+            - Currently, HARP supports gr.Audio, gr.File(file_types=[".mid", ".midi"]),
+              and gr.JSON widgets as outputs.
         process_fn (callable):
-            Function processing the inputs to generate the output.
-            The function must accept the inputs in the same order as the inputs list.
-            The function must return a filepath string pointing to the output audio file.
+            - Function processing the inputs to generate the output.
+            - The function must accept the inputs in the same order as the inputs list.
+            - The function must return the outputs in the same order as the outputs list,
+              with a filepath string pointing to each output file.
 
     Returns:
-        app (dict):
-            A dictionary containing:
-                1. A gr.JSON to store the control data.
-                2. A gr.Button to get the control data.
-                3. A gr.Button to process the input and generate the output.
-                4. A gr.Button to cancel processing.
+        app (dict): A dictionary containing:
+            1. A gr.JSON to store the control data.
+            2. A gr.Button to get the control data.
+            3. A gr.Button to process the input and generate the output.
+            4. A gr.Button to cancel processing.
     """
 
-    # convert Gradio components to simple controls
+    # Convert Gradio components to simple control objects
     harp_inputs = [get_harp_component(gr_cmp) for gr_cmp in input_components]
     harp_outputs = [get_harp_component(gr_cmp) for gr_cmp in output_components]
 
-    # callable returning card and controls
+    # Create a callable returning model card and controls
     def fetch_model_info():
         data = {
             "card": asdict(model_card),
-            "inputs": [asdict(harp_cmp) for harp_cmp in harp_inputs],
-            "outputs": [asdict(harp_cmp) for harp_cmp in harp_outputs]
+            "inputs": [asdict(cmp) for cmp in harp_inputs],
+            "outputs": [asdict(cmp) for cmp in harp_outputs]
         }
         return data
 
-    # component to store the control data
+    # Create a component to store the control data
     controls_data = gr.JSON(label="Controls Data")
 
-    # endpoint allowing HARP to fetch model control data
-    controls_button = gr.Button("View Controls", visible=True)
+    # Create a button to fetch model control data
+    controls_button = gr.Button("View Controls")
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
@@ -220,14 +231,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         api_name="controls"
     )
 
-    # Detect the return type of process_fn
-    # sig = inspect.signature(process_fn)
-    # return_annotation = sig.return_annotation
-
-    # component to store the labels data
-    # output_labels = gr.JSON(label="Output Labels")
-
-    # process button to begin processing
+    # Create a button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
         fn=process_fn,
@@ -236,7 +240,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         api_name="process"
     )
 
-    # cancel button to stop processing
+    # Create a button to cancel processing
     cancel_button = gr.Button("Cancel")
     cancel_button.click(
         fn=None,
@@ -254,5 +258,6 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     }
 
     return app
+
 
 extend_gradio()

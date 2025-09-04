@@ -1,5 +1,5 @@
-from pathlib import Path
-from datetime import datetime
+from .utils import *
+
 import symusic
 
 
@@ -7,9 +7,8 @@ __all__ = [
     'load_midi',
     'save_midi',
     'ticks_to_seconds',
-    'get_tick_time_in_seconds',
+    'get_tick_time_in_seconds'
 ]
-
 
 def load_midi(input_midi_path):
     """
@@ -26,7 +25,6 @@ def load_midi(input_midi_path):
 
     return midi
 
-
 def save_midi(midi, output_midi_path=None, include_timestamp=False) -> str:
     """
     Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
@@ -40,25 +38,18 @@ def save_midi(midi, output_midi_path=None, include_timestamp=False) -> str:
         output_midi_path (str): the filepath of the saved MIDI.
     """
 
-    assert isinstance(midi, symusic.Score), "Default loading only supports instances of symusic.Score."
-
-    timestamp = f"_{datetime.now().strftime('%Y%m%d_%H%M%S')}" if include_timestamp else ""
+    assert isinstance(midi, symusic.Score), \
+        "Default loading only supports instances of symusic.Score."
 
     if output_midi_path is None:
-        output_dir = Path("_outputs")
-        output_dir.mkdir(exist_ok=True)
-        output_midi_path = output_dir / f"output{timestamp}.mid"
-        output_midi_path = output_midi_path.absolute().__str__()
-    else:
-        # Add timestamp to the provided path
-        path_obj = Path(output_midi_path)
-        output_midi_path = path_obj.parent / f"{path_obj.stem}{timestamp}{path_obj.suffix}"
-        output_midi_path = str(output_midi_path)
+        output_midi_path = get_default_path(ext=".mid")
+
+    if include_timestamp:
+        output_midi_path = add_timestamp_to_path(output_midi_path)
 
     midi.dump_midi(output_midi_path)
 
     return output_midi_path
-
 
 def ticks_to_seconds(ticks, tempo, ticks_per_quarter):
     """
@@ -73,11 +64,10 @@ def ticks_to_seconds(ticks, tempo, ticks_per_quarter):
         seconds (float): duration in seconds.
     """
 
-    #seconds per beat times number of quarter beats
-    seconds = (60 / tempo) * ticks / ticks_per_quarter
+    # Seconds per beat times number of quarter beats
+    seconds = (60 / tempo) * (ticks / ticks_per_quarter)
 
     return seconds
-
 
 def get_tick_time_in_seconds(tick, midi):
     """

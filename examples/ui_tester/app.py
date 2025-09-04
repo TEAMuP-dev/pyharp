@@ -142,7 +142,7 @@ def process_fn(
             ),
             AudioLabel(
                 t=(duration - 1),
-                label="lo-tminus1-d1-a1",
+                label="lo-t100%minus1-d1-a1",
                 duration=1,
                 description=descr_3,
                 color=OutputLabel.rgb_color_to_int(48, 102, 28),
@@ -267,8 +267,13 @@ with gr.Blocks() as demo:
 
     # Define output Gradio Components
     output_components = [
-        gr.Audio(type="filepath", label="Output Audio"),
-        gr.File(type="filepath", label="Output Midi", file_types=[".mid", ".midi"]),
+        gr.Audio(type="filepath",
+                 label="Output Audio")
+        .set_info("The selected audio file."),
+        gr.File(type="filepath",
+                label="Output Midi",
+                file_types=[".mid", ".midi"])
+        .set_info("The fixed MIDI file."),
         gr.JSON(label="Output Labels"),
     ]
 

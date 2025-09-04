@@ -1,8 +1,9 @@
+examples/**/.git/
+examples/**/.gitattributes
+.gradio
+_outputs
 *.egg-info
 __pycache__
-_outputs
 .DS_Store
 .idea
 .vscode
-examples/**/.git/
-.gradio

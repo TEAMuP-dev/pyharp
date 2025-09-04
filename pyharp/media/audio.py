@@ -1,5 +1,5 @@
-from pathlib import Path
-from datetime import datetime
+from .utils import *
+
 import audiotools
 
 
@@ -7,7 +7,6 @@ __all__ = [
     'load_audio',
     'save_audio'
 ]
-
 
 def load_audio(input_audio_path):
     """
@@ -24,7 +23,6 @@ def load_audio(input_audio_path):
 
     return signal
 
-
 def save_audio(signal, output_audio_path=None, include_timestamp=False) -> str:
     """
     Saves audio to a specified path using audiotools (Descript).
@@ -38,21 +36,15 @@ def save_audio(signal, output_audio_path=None, include_timestamp=False) -> str:
         output_audio_path (str): the filepath of the saved audio.
     """
 
-    assert isinstance(signal, audiotools.AudioSignal), "Default loading only supports instances of audiotools.AudioSignal."
-    
-    timestamp = f"_{datetime.now().strftime('%Y%m%d_%H%M%S')}" if include_timestamp else ""
+    assert isinstance(signal, audiotools.AudioSignal), \
+        "Default loading only supports instances of audiotools.AudioSignal."
 
     if output_audio_path is None:
-        output_dir = Path("_outputs")
-        output_dir.mkdir(exist_ok=True)
-        output_audio_path = output_dir / f"output{timestamp}.wav"
-        output_audio_path = output_audio_path.absolute().__str__()
-    else:
-        # Add timestamp to the provided path
-        path_obj = Path(output_audio_path)
-        output_audio_path = path_obj.parent / f"{path_obj.stem}{timestamp}{path_obj.suffix}"
-        output_audio_path = str(output_audio_path)
+        output_audio_path = get_default_path(ext=".wav")
+
+    if include_timestamp:
+        output_audio_path = add_timestamp_to_path(output_audio_path)
 
     signal.write(output_audio_path)
 
-    return str(signal.path_to_file)
+    return output_audio_path
