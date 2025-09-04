@@ -1,31 +1,36 @@
 from pyharp import *
 
+from symusic import Synthesizer, BuiltInSF3, dump_wav
 import gradio as gr
+import audiotools
 
 
 # Create a ModelCard
 model_card = ModelCard(
-    name='MIDI Pitch Shifter',
-    description="A MIDI pitch shifting example for HARP v3.",
+    name='MIDI Synthesizer',
+    description="A MIDI synthesizer example for HARP v3.",
     author='TEAMuP',
-    tags=["example", "midi", "pitch shift", "v3"]
+    tags=["example", "midi", "synthesizer", "v3"]
 )
 
 # Define the process function
-def process_fn(
-    input_midi_path: str,
-    pitch_shift_amount: int
-) -> str:
+def process_fn(input_midi_path: str) -> str:
 
     midi = load_midi(input_midi_path)
 
-    for t in midi.tracks:
-        for n in t.notes:
-            n.pitch += int(pitch_shift_amount)
-    
-    output_midi_path = str(save_midi(midi))
+    # Create a synthesizer with default settings
+    synthesizer = Synthesizer(
+        sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
+        sample_rate=44100,
+        quality=4 # Default quality setting
+    )
 
-    return output_midi_path
+    data = synthesizer.render(midi, stereo=True)
+    audio = audiotools.AudioSignal(data, sample_rate=44100)
+
+    output_audio_path = str(save_audio(audio))
+
+    return output_audio_path
 
 # Build Gradio endpoint
 with gr.Blocks() as demo:
@@ -35,22 +40,13 @@ with gr.Blocks() as demo:
                 label="Input Midi",
                 file_types=[".mid", ".midi"])
         .harp_required(True),
-        gr.Slider(
-            minimum=-24,
-            maximum=24,
-            step=1,
-            value=7,
-            label="Pitch Shift (semitones)",
-            info="Controls the amount of pitch shift in semitones"
-        ),
     ]
 
     # Define output Gradio Components
     output_components = [
-        gr.File(type="filepath",
-                label="Output Midi",
-                file_types=[".mid", ".midi"])
-        .set_info("The pitch-shifted MIDI."),
+        gr.Audio(type="filepath",
+                label="Output Audio")
+        .set_info("The synthesized audio."),
     ]
 
     # Build a HARP-compatible endpoint
