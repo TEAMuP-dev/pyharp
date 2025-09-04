@@ -14,10 +14,7 @@ model_card = ModelCard(
 )
 
 # Define the process function
-def process_fn(
-    input_midi_path: str,
-    pitch_shift_amount: int
-) -> str:
+def process_fn(input_midi_path: str) -> str:
 
     midi = load_midi(input_midi_path)
 
