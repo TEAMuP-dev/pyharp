@@ -240,14 +240,10 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         api_name="process"
     )
 
-    # Create a callable for cancel function
-    def cancel_callback():
-        pass
-
     # Create a button to cancel processing
     cancel_button = gr.Button("Cancel")
     cancel_button.click(
-        fn=cancel_callback,
+        fn=lambda: None,
         inputs=[],
         outputs=[],
         api_name="cancel",
