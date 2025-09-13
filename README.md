@@ -26,7 +26,7 @@ cd pyharp
 ```
 
 ## Examples
-We provide several examples of how to create a PyHARP app under the `examples/` directory. You can also find a list of models already deployed as PyHARP apps [here](https://github.com/TEAMuP-dev/HARP#available-models).
+We provide several examples of how to create a PyHARP app under the `examples/` directory. You can also find a list of models already deployed as PyHARP apps on [our website](https://harp-plugin.netlify.app/content/usage/models.html).
 
 In order to run an app, you will need to install its corresponding dependencies. For example, to install the dependences for our [pitch shifter](https://github.com/TEAMuP-dev/pyharp/tree/main/examples/pitch_shifter) example:
 
@@ -83,7 +83,7 @@ Here are a few tips and best-practices when dealing with HuggingFace Spaces:
 - A `.gitignore` file should be added to maintain repository orderliness (_e.g._, to ignore `src/_outputs`)
 
 ## Deploying to HARP
-PyHARP apps can be accessed from [within HARP](https://github.com/TEAMuP-dev/HARP#available-models) through the local or forwarded URL corresponding to their active Gradio endpoints ([see above](#examples)), or the URL corresponding to their dedicated hosting service ([see above](#hosting-endpoints)), if applicable.
+PyHARP apps can be accessed from [within HARP](https://github.com/TEAMuP-dev/HARP) through the local or forwarded URL corresponding to their active Gradio endpoints ([see above](#examples)), or the URL corresponding to their dedicated hosting service ([see above](#hosting-endpoints)), if applicable.
 
 
 
