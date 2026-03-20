@@ -291,6 +291,37 @@ demo.queue().launch(share=True, show_error=False, pwa=True) # see the third NOTE
 
 **NOTE (5):** All Audio and File components can be extended with the `info` attribute to define instructions to display in HARP using our `set_info` function.
 
+## Output MIDIs
+To output a MIDI file, you should write the MIDI outputs from the model to a `.mid` or `.midi` file and pass the file path as the output.
+
+```python
+...
+
+import tempfile
+
+...
+
+def process_fn(...):
+    out_fd, out_path = tempfile.mkstemp(suffix=".mid")
+    # save the output to the out_fd handle or the out_path
+    return out_path
+
+with gr.Blocks() as demo:
+
+    ...
+
+    output_components = [
+        gr.File(
+            label="Output MIDI File",
+            file_types=[".mid", ".midi"],
+            type="filepath"
+        )
+    ]
+
+    ...
+
+```
+
 ## Output Labels
 In order to display output labels in HARP, you must define an output JSON component and return our custom ```LabelList``` object in ```process_fn```:
 ```python
