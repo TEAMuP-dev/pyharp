@@ -72,7 +72,7 @@ def process_fn(
 ) -> Tuple[str, str, LabelList]:
 
     # Paths to files to use for output
-    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/{dropdown_1}"
+    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.wav"
     midi_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.mid"
 
     # Download audio and MIDI file
