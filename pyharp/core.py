@@ -177,7 +177,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
                    process_fn: callable) -> tuple:
     """
-    Builds a Gradio endpoint compatible with HARP, facilitating VST3 plugin usage in a DAW.
+    Builds a Gradio endpoint compatible with HARP.
 
     Args:
         model_card (ModelCard): A ModelCard object describing the model.
