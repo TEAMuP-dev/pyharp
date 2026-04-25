@@ -221,7 +221,7 @@ with gr.Blocks() as demo:
 Note that by default PyHARP uses the [symusic](https://github.com/Yikai-Liao/symusic) package to load and save MIDI, but any standard method will work.
 
 ## Output Labels
-In order to display output labels in HARP, you must define an output JSON component and return our custom `LabelList` object in `process_fn`:
+In order to display output labels in HARP, you must define an output [JSON](https://www.gradio.app/docs/gradio/json) component and return our custom `LabelList` object in `process_fn`:
 ```python
 from pyharp import LabelList, AudioLabel, MidiLabel, OutputLabel, ...
 
