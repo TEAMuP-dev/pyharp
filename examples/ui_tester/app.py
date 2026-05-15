@@ -60,6 +60,7 @@ def download_file(url):
 # Define the process function
 def process_fn(
     input_audio_path, # unused
+    generic_file_path,
     slider_1_time_sleep,
     slider_2,
     slider_3,
@@ -70,6 +71,8 @@ def process_fn(
     checkbox_3,
     text_control
 ) -> Tuple[str, str, LabelList]:
+    
+    print("\n\nGENERIC FILE PATH:", generic_file_path, "\n\n")
 
     # Paths to files to use for output
     audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/main/test/{dropdown_1}"
@@ -208,6 +211,15 @@ with gr.Blocks() as demo:
                  label="Optional AudioInp")
         .harp_required(False)
         .set_info('This is an optional input track that has no effect on the output.'),
+
+        gr.File(
+            type="filepath",
+            label="Generic Config File",
+            file_types=[".txt", ".csv", ".json", ".nam"]
+        )
+        .set_info("Select a generic file input. HARP should show this as a GUI file picker, not an input track."),
+
+
         gr.Slider(
             minimum=0,
             maximum=100,

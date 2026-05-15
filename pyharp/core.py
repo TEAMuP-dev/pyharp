@@ -32,11 +32,11 @@ class HarpMidiTrack(HarpComponent):
     required: bool
     type: str = "midi_track"
 
-# Generic file
 @dataclass
-class HarpFileTrack(HarpComponent):
+class HarpFilePicker(HarpComponent):
     required: bool
-    type: str = "file_track"
+    file_types: List[str]
+    type: str = "file_picker"
 
 @dataclass
 class HarpSlider(HarpComponent):
@@ -124,8 +124,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     elif isinstance(gr_cmp, gr.File):
         assert gr_cmp.type == "filepath", \
             f"File input must be of type filepath, not {gr_cmp.type}"
-            
-        # If it specifically asks for MIDI, keep the original behavior
+
         if gr_cmp.file_types is not None and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
             harp_cmp = HarpMidiTrack(
                 label=gr_cmp.label,
@@ -133,11 +132,11 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
                 required=gr_cmp.is_harp_required
             )
         else:
-            # For .txt, .csv, or any other file types, use our new general file track
-            harp_cmp = HarpFileTrack(
+            harp_cmp = HarpFilePicker(
                 label=gr_cmp.label,
                 info=gr_cmp.info,
-                required=gr_cmp.is_harp_required
+                required=gr_cmp.is_harp_required,
+                file_types=gr_cmp.file_types if gr_cmp.file_types is not None else []
             )
     elif isinstance(gr_cmp, gr.Slider):
         harp_cmp = HarpSlider(
