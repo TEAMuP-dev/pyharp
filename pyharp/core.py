@@ -34,6 +34,7 @@ class HarpMidiTrack(HarpComponent):
 
 @dataclass
 class HarpFileComponent(HarpComponent):
+    required: bool
     file_types: List[str]
     type: str = "generic_file"
 
@@ -134,6 +135,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             harp_cmp = HarpFileComponent(
                 label=gr_cmp.label,
                 info=gr_cmp.info,
+                required=gr_cmp.is_harp_required,
                 file_types=gr_cmp.file_types if gr_cmp.file_types is not None else []
             )
     elif isinstance(gr_cmp, gr.Slider):

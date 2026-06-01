@@ -71,12 +71,9 @@ def process_fn(
     checkbox_3,
     text_control
 ) -> Tuple[str, str, LabelList]:
-    
-    print("\n\nGENERIC FILE PATH:", generic_file_path, "\n\n")
-
     # Paths to files to use for output
-    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/main/test/{dropdown_1}"
-    midi_url = "https://github.com/TEAMuP-dev/HARP/blob/main/test/test.mid"
+    audio_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.wav"
+    midi_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.mid"
 
     # Download audio and MIDI file
     local_audio_path = download_file(audio_url)
@@ -216,7 +213,8 @@ with gr.Blocks() as demo:
             label="Generic Config File",
             file_types=[".txt", ".csv", ".json", ".nam"]
         )
-        .set_info("Select a generic file input. HARP should show this as a GUI file picker, not an input track."),
+        .set_info("Select a generic file input. HARP should show this as a GUI file picker, not an input track.")
+        .harp_required(False),
         gr.Slider(
             minimum=0,
             maximum=100,
