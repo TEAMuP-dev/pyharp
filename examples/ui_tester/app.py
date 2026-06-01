@@ -94,6 +94,12 @@ def process_fn(
     output_audio_path = save_audio(audio)
     output_midi_path = save_midi(midi)
 
+    if generic_file_path is None:
+        generic_file_path = get_default_path(".txt")
+
+        with open(generic_file_path, "w") as f:
+            f.write("generic file output")
+
     # Create an empty label list
     output_labels = LabelList()
 
@@ -276,16 +282,17 @@ with gr.Blocks() as demo:
     output_components = [
         gr.Audio(type="filepath",
                  label="Output Audio")
-        .set_info("The selected audio file."),
+        .set_info("Audio file."),
         gr.File(type="filepath",
                 label="Output Midi",
                 file_types=[".mid", ".midi"])
-        .set_info("The fixed MIDI file."),
+        .set_info("MIDI file."),
         gr.JSON(label="Output Labels"),
         gr.File(
             type="filepath",
             label="Output File"
         )
+        .set_info("Generic file."),
     ]
 
     # Build a HARP-compatible endpoint
