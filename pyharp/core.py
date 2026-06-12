@@ -194,7 +194,7 @@ class JobSupervisor:
     timed out via SIGTERM, rather than running to completion server-side.
     """
 
-    def __init__(self, timeout_s=300):
+    def __init__(self, timeout_s=900):
         self.timeout_s = timeout_s
         self._process = None
         self._result_q = None
@@ -247,7 +247,7 @@ class JobSupervisor:
         self._result_q = None
 
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
-                   process_fn: callable, timeout_s: int = 300) -> tuple:
+                   process_fn: callable, timeout_s: int = 900) -> tuple:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -277,7 +277,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
               than timeout_s, the subprocess is killed (SIGTERM) and the job
               is aborted.
         timeout_s (int): Maximum time in seconds to let process_fn run before
-            it is forcibly killed. Defaults to 300 (5 minutes). Increase this
+            it is forcibly killed. Defaults to 900 (15 minutes). Increase this
             for models that need more time to process their inputs.
 
     Returns:
