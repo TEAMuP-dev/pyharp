@@ -313,9 +313,7 @@ git push -u origin main
      Place any necessary **apt-get install** debian packages in this file. Some models may require these.
 
 ### Docker Endpoints
-Some models may have been developed with older versions of Python, and attempting to deploy them would lead to dependency issues. For example, the `numpy.float` and `numpy.int` deprecation in `numpy==1.24` breaks older packages such as `madmom`. Therefore, we may need to patch any corresponding source files during the deployment process. However, this is not supported by the highly-modularized Gradio SDK.
-
-Using Docker endpoints can help circumvent these issues. Docker will allow you to customize the deployment, which makes room for any necessary patches. Note however that ZeroGPU is not available for Docker spaces, meaning you must pay to use GPU resources with this option.
+Some models may have been developed with older versions of Python, and attempting to deploy them would lead to dependency issues. For example, the `numpy.float` and `numpy.int` deprecation in `numpy==1.24` breaks older packages such as `madmom`. Therefore, we will have two Python versions installed in a single environment, for the gradio-pyharp frontend and the model-processing backend. In this scenario, an automatic Gradio space is not enough, and a Docker space will allow you to customize the deployment. Note, however, that ZeroGPU is not available for Docker spaces, meaning you must pay to use GPU resources with this option.
 
 1. Create a new [HuggingFace Space](https://huggingface.co/new-space).
 2. Choose Docker as the SDK along with the blank template.
@@ -335,60 +333,103 @@ git push -u origin main
 
       Set **app_port** to any valid `<PORT>`.
 
-   - `requirements.txt`
+   - `requirements-frontend.txt` and `requirements-backend.txt`
 
-     Place all of the required **pip** packages in this file. It should also include the recommended version of `gradio` and the latest version of `pyharp`:
+     Place all of the required **pip** packages in this file. For `requirements-frontend.txt`, it should also include the recommended version of `gradio` and the latest version of `pyharp`:
      ```
      gradio==5.28.0
      git+https://github.com/TEAMuP-dev/pyharp.git@v0.3.0
      ```
+      For `requirements-backend.txt`, put all necessary packages for the backend model.
 
    - `packages.txt`
      
-     Place any necessary **apt-get install** debian packages in this file. Some models may require these.
+     Place any necessary **apt-get install** Debian packages in this file. Some models may require these.
+     
+   - `app.py`
+     Add a `call_backend` function in the app to run the backend model as a subprocess.
+     ```python
+     def call_backend(audio_path: str, timeout_s: float = 120.0) -> list[dict[str, float]]:
+        completed = subprocess.run(
+            [BACKEND_PYTHON, BACKEND_SCRIPT, audio_path],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=timeout_s,
+        )
+   
+        try:
+            response: dict[str, Any] = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                "BeatNet backend returned invalid JSON. "
+                f"stdout={completed.stdout!r} stderr={completed.stderr!r}"
+            ) from exc
+   
+        if not response.get("ok"):
+            error = response.get("error") or completed.stderr or "BeatNet backend failed"
+            raise RuntimeError(error)
+        return response["beats"]
+     ```
 
-    - `Dockerfile`
+   - `Dockerfile`
 
-      Installs the required **pip** and **apt-get** packages, and supports manual patching (_e.g._ of `madmom` in the following example):
+      Installs the required **pip** and **apt-get** packages, together with the two Python environments. Here is an example to work with the [BeatNet]([https://github.com/mjhydri/BeatNet](https://huggingface.co/spaces/teamup-tech/BeatNet-dual)):
       ```Docker
-      FROM python:3.10-slim # Set python version
+      FROM python:3.10-slim-bullseye         # Frontend Python version
 
+      # Variable settings
+      ENV DEBIAN_FRONTEND=noninteractive \
+          PYTHONUNBUFFERED=1 \
+          PYTHONIOENCODING=UTF-8 \
+          PIP_NO_BUILD_ISOLATION=1 \
+          FRONTEND_VENV=/opt/frontend-py310 \
+          BACKEND_VENV=/opt/backend-py39 \
+          BACKEND_PYTHON=/opt/backend-py39/bin/python \
+          BACKEND_SCRIPT=/app/backend_worker.py \
+          PORT=7860
+
+      # Install apt-get packages
+      RUN apt-get update && apt-get install -y --no-install-recommends \
+              build-essential \
+              curl \
+              git \
+              libasound2-dev \
+              portaudio19-dev \
+              python3.9 \                    # Backend Python version
+              python3.9-dev \                # Backend Python version
+              python3.9-distutils \          # Backend Python version
+              python3.9-venv \               # Backend Python version
+          && rm -rf /var/lib/apt/lists/*
+      
       WORKDIR /app
-      COPY packages.txt /app/packages.txt
-
-      # System dependencies for building packages from source
-      RUN apt-get update
-      RUN xargs apt-get install -y --no-install-recommends < /app/packages.txt
-      RUN rm -rf /var/lib/apt/lists/*
-
-      COPY requirements.txt /app/requirements.txt
-      # Disable build isolation so Cython installed in the environment is visible at build time
-      ENV PIP_NO_BUILD_ISOLATION=1
-      RUN pip install --no-cache-dir -U pip wheel Cython
-      RUN pip install --no-cache-dir setuptools==80.9.0
-      RUN pip install --no-cache-dir -r /app/requirements.txt
-      RUN pip install --no-cache-dir --no-build-isolation madmom
-
-      # Patch madmom package
-      COPY patch_madmom.py /app/scripts/patch_madmom.py # Script to patch madmom source files
-      RUN python /app/scripts/patch_madmom.py
-      RUN python -c "import madmom; print('madmom import OK')"
-
-      # Copy remainder of the repo
-      COPY . /app
-
-      # HF Spaces route traffic to <PORT>
-      # Gradio should listen accordingly
-      ENV PORT=<PORT> # <PORT> in README.md
-      EXPOSE <PORT>
-
-      # Run the app
-      CMD ["python", "app.py"]
+      
+      # Backend uses Debian Bullseye's Python 3.9 interpreter for BeatNet/madmom.
+      COPY requirements-backend-py39.txt /tmp/requirements-backend.txt
+      RUN /usr/bin/python3.9 -m venv "$BACKEND_VENV" \
+          && "$BACKEND_VENV/bin/pip" install --no-cache-dir -U pip wheel "Cython<3" \
+          && "$BACKEND_VENV/bin/pip" install --no-cache-dir setuptools==80.9.0 \
+          && "$BACKEND_VENV/bin/pip" install --no-cache-dir -r /tmp/requirements-backend-py39.txt \
+          && "$BACKEND_VENV/bin/pip" install --no-cache-dir --no-build-isolation --no-deps madmom \
+          && "$BACKEND_VENV/bin/pip" install --no-cache-dir --no-build-isolation --no-deps BeatNet \
+          && "$BACKEND_VENV/bin/python" -c "import numpy; import madmom.audio.comb_filters; from BeatNet.BeatNet import BeatNet; print('backend import check ok', numpy.__version__)"
+      
+      # Frontend uses the base image's Python 3.10 interpreter for Gradio/pyharp.
+      COPY requirements-frontend-py310.txt /tmp/requirements-frontend-py310.txt
+      RUN /usr/local/bin/python3.10 -m venv "$FRONTEND_VENV" \
+          && "$FRONTEND_VENV/bin/pip" install --no-cache-dir -U pip wheel \
+          && "$FRONTEND_VENV/bin/pip" install --no-cache-dir -r /tmp/requirements-frontend.txt
+      
+      COPY backend_worker.py frontend_app.py start.sh ./
+      RUN chmod +x /app/start.sh
+      
+      EXPOSE 7860
+      CMD ["/app/start.sh"]
       ```
 
 ---
 Here are a few tips and best practices when dealing with HuggingFace Spaces:
-- Spaces operate based off of the files in the `main` branch
+- Spaces operate based on the files in the `main` branch
 - An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
 - A `.gitignore` file should be added to maintain repository orderliness (_e.g._, to ignore `src/_outputs`)
 - Pin versions for `numpy` (_e.g._, `<2`), `torch` (_e.g._, `==2.2.2`), and `torchaudio` (_e.g._, `==2.2.2`) to avoid unexpected build issues caused by the latest versions of these packages
