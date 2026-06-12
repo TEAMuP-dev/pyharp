@@ -2,7 +2,13 @@ from gradio.components.base import Component
 from dataclasses import dataclass, asdict
 from typing import List
 
+import multiprocessing as mp
+import threading
 import gradio as gr
+
+
+# "spawn" avoids deadlocks with CUDA/PyTorch libraries that "fork" can cause on Linux (HuggingFace Spaces)
+mp.set_start_method("spawn", force=True)
 
 
 __all__ = [
@@ -174,8 +180,74 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
 
     return harp_cmp
 
+def _worker_entry(fn, args, result_q):
+    try:
+        result = fn(*args)
+        result_q.put(("ok", result))
+    except Exception:
+        import traceback
+        result_q.put(("err", traceback.format_exc()))
+
+class JobSupervisor:
+    """
+    Runs a callable in a subprocess and allows it to be cancelled or
+    timed out via SIGTERM, rather than running to completion server-side.
+    """
+
+    def __init__(self, timeout_s=300):
+        self.timeout_s = timeout_s
+        self._process = None
+        self._result_q = None
+        self._lock = threading.Lock()
+
+    def run(self, fn, *args):
+        self.cancel()  # single-flight: kill any previous job first
+
+        with self._lock:
+            self._result_q = mp.Queue()
+            self._process = mp.Process(
+                target=_worker_entry,
+                args=(fn, args, self._result_q),
+                daemon=True,
+            )
+            self._process.start()
+            process, result_q = self._process, self._result_q
+
+        process.join(self.timeout_s)
+
+        with self._lock:
+            if self._process is process and process.is_alive():
+                self._terminate("timeout")
+
+        status, payload = result_q.get()
+
+        with self._lock:
+            if self._process is process:
+                self._cleanup()
+
+        if status == "err":
+            raise RuntimeError(payload)
+        return payload
+
+    def cancel(self):
+        with self._lock:
+            if self._process and self._process.is_alive():
+                self._terminate("cancelled")
+
+    def _terminate(self, reason):
+        self._process.terminate()
+        self._process.join()
+        if self._result_q is not None:
+            self._result_q.put(("err", f"Job {reason}"))
+        self._cleanup()
+        raise RuntimeError(f"Job {reason}")
+
+    def _cleanup(self):
+        self._process = None
+        self._result_q = None
+
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
-                   process_fn: callable) -> tuple:
+                   process_fn: callable, timeout_s: int = 300) -> tuple:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -197,6 +269,16 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             - The function must accept the inputs in the same order as the inputs list.
             - The function must return the outputs in the same order as the outputs list,
               with a filepath string pointing to each output file.
+            - process_fn runs in a separate subprocess, so its arguments and
+              return values must be picklable (e.g. filepath strings, numbers,
+              booleans, JSON-serializable data). It cannot rely on gr.Progress
+              or other objects tied to the Gradio request context.
+            - If the Cancel button is pressed, or if process_fn runs longer
+              than timeout_s, the subprocess is killed (SIGTERM) and the job
+              is aborted.
+        timeout_s (int): Maximum time in seconds to let process_fn run before
+            it is forcibly killed. Defaults to 300 (5 minutes). Increase this
+            for models that need more time to process their inputs.
 
     Returns:
         app (dict): A dictionary containing:
@@ -231,10 +313,22 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         api_name="controls"
     )
 
+    # Supervise process_fn in a subprocess so it can be killed on cancel/timeout
+    supervisor = JobSupervisor(timeout_s=timeout_s)
+
+    def supervised_process(*args):
+        return supervisor.run(process_fn, *args)
+
+    def cancel_handler():
+        try:
+            supervisor.cancel()
+        except RuntimeError:
+            pass  # expected -- job was cancelled successfully
+
     # Create a button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
-        fn=process_fn,
+        fn=supervised_process,
         inputs=input_components,
         outputs=output_components,
         api_name="process"
@@ -243,7 +337,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     # Create a button to cancel processing
     cancel_button = gr.Button("Cancel")
     cancel_button.click(
-        fn=lambda: None,
+        fn=cancel_handler,
         inputs=[],
         outputs=[],
         api_name="cancel",
