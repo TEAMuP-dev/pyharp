@@ -181,12 +181,19 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     return harp_cmp
 
 def _worker_entry(fn, args, result_q):
+    import traceback
     try:
         result = fn(*args)
         result_q.put(("ok", result))
-    except Exception:
-        import traceback
-        result_q.put(("err", traceback.format_exc()))
+    except gr.Error as e:
+        traceback.print_exc()
+        result_q.put((
+            "gr_error",
+            (e.message, e.duration, e.visible, e.title),
+        ))
+    except Exception as e:
+        tb = traceback.format_exc()
+        result_q.put(("err", (str(e), tb)))
 
 class JobSupervisor:
     """
@@ -217,7 +224,10 @@ class JobSupervisor:
 
         with self._lock:
             if self._process is process and process.is_alive():
-                self._terminate("timeout")
+                try:
+                    self._terminate("timeout")
+                except RuntimeError:
+                    pass  # sentinel pushed to result_q, handled below
 
         status, payload = result_q.get()
 
@@ -225,8 +235,12 @@ class JobSupervisor:
             if self._process is process:
                 self._cleanup()
 
+        if status == "gr_error":
+            message, duration, visible, title = payload
+            raise gr.Error(message, duration=duration, visible=visible, title=title)
         if status == "err":
-            raise RuntimeError(payload)
+            short_msg, tb = payload
+            raise RuntimeError(f"{short_msg}\n\n{tb}")
         return payload
 
     def cancel(self):
@@ -238,7 +252,7 @@ class JobSupervisor:
         self._process.terminate()
         self._process.join()
         if self._result_q is not None:
-            self._result_q.put(("err", f"Job {reason}"))
+            self._result_q.put(("gr_error", (f"Job {reason}.", 10, True, reason.capitalize())))
         self._cleanup()
         raise RuntimeError(f"Job {reason}")
 
