@@ -60,6 +60,7 @@ def download_file(url):
 # Define the process function
 def process_fn(
     input_audio_path, # unused
+    generic_file_path,
     slider_1_time_sleep,
     slider_2,
     slider_3,
@@ -70,9 +71,8 @@ def process_fn(
     checkbox_3,
     text_control
 ) -> Tuple[str, str, LabelList]:
-
     # Paths to files to use for output
-    audio_url = f"https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.wav"
+    audio_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.wav"
     midi_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.mid"
 
     # Download audio and MIDI file
@@ -93,6 +93,12 @@ def process_fn(
     # Save downloaded data to output
     output_audio_path = save_audio(audio)
     output_midi_path = save_midi(midi)
+
+    if generic_file_path is None:
+        generic_file_path = get_default_path(".txt")
+
+        with open(generic_file_path, "w") as f:
+            f.write("generic file output")
 
     # Create an empty label list
     output_labels = LabelList()
@@ -197,7 +203,7 @@ def process_fn(
     # Delay return for chosen amount of time
     time.sleep(int(slider_1_time_sleep))
 
-    return output_audio_path, output_midi_path, output_labels
+    return output_audio_path, output_midi_path, output_labels, generic_file_path
 
 
 # Build Gradio endpoint
@@ -208,6 +214,13 @@ with gr.Blocks() as demo:
                  label="Optional AudioInp")
         .harp_required(False)
         .set_info('This is an optional input track that has no effect on the output.'),
+        gr.File(
+            type="filepath",
+            label="Generic Config File",
+            file_types=[".txt", ".csv", ".json", ".nam"]
+        )
+        .set_info("Select a generic file input. HARP should show this as a GUI file picker, not an input track.")
+        .harp_required(False),
         gr.Slider(
             minimum=0,
             maximum=100,
@@ -269,12 +282,17 @@ with gr.Blocks() as demo:
     output_components = [
         gr.Audio(type="filepath",
                  label="Output Audio")
-        .set_info("The selected audio file."),
+        .set_info("Audio file."),
         gr.File(type="filepath",
                 label="Output Midi",
                 file_types=[".mid", ".midi"])
-        .set_info("The fixed MIDI file."),
+        .set_info("MIDI file."),
         gr.JSON(label="Output Labels"),
+        gr.File(
+            type="filepath",
+            label="Output File"
+        )
+        .set_info("Generic file."),
     ]
 
     # Build a HARP-compatible endpoint
@@ -284,6 +302,5 @@ with gr.Blocks() as demo:
         output_components=output_components,
         process_fn=process_fn,
     )
-
 
 demo.queue().launch(share=True, show_error=False, pwa=True)
