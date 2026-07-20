@@ -33,6 +33,11 @@ class HarpMidiTrack(HarpComponent):
     type: str = "midi_track"
 
 @dataclass
+class HarpTextTrack(HarpComponent):
+    required: bool
+    type: str = "text_track"
+
+@dataclass
 class HarpSlider(HarpComponent):
     minimum: float
     maximum: float
@@ -120,6 +125,15 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         assert gr_cmp.type == "filepath", \
             f"File input must be of type filepath, not {gr_cmp.type}"
         harp_cmp = HarpMidiTrack(
+            label=gr_cmp.label,
+            info=gr_cmp.info,
+            required=gr_cmp.is_harp_required
+        )
+    elif isinstance(gr_cmp, gr.File) \
+          and '.txt' in gr_cmp.file_types:
+        assert gr_cmp.type == "filepath", \
+            f"File input must be of type filepath, not {gr_cmp.type}"
+        harp_cmp = HarpTextTrack(
             label=gr_cmp.label,
             info=gr_cmp.info,
             required=gr_cmp.is_harp_required
