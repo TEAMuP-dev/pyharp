@@ -76,7 +76,7 @@ def build_audio_labels(duration: float, descriptions: dict) -> list:
             t=0.0,
             label="amplitude 0.0",
             duration=1.0,
-            description=descriptions["dropdown"],
+            description=descriptions["dropdowns"],
             color=OutputLabel.rgb_color_to_int(28, 102, 48),
             amplitude=0.0
         ),
@@ -120,7 +120,7 @@ def build_midi_labels(descriptions: dict) -> list:
             t=0.0,
             label="start",
             duration=1.0,
-            description=descriptions["sliders"],
+            description=descriptions["number"],
             color=OutputLabel.rgb_color_to_int(255, 255, 0)
         ),
         # Overlay, on the piano roll row for the given pitch
@@ -151,7 +151,7 @@ def process_fn(
     processing_delay: float,
     gain: float,
     repetitions: float,
-    dropdown: str,
+    mode: str,
     effects: list,
     enable_audio_labels: bool,
     enable_midi_labels: bool,
@@ -167,11 +167,11 @@ def process_fn(
         processing_delay (float): Seconds to sleep, to test HARP's cancel button.
         gain (float): Unused; demonstrates a fractional slider.
         repetitions (float): Unused; demonstrates a number box.
-        dropdown (str): Unused; demonstrates a dropdown.
+        mode (str): Unused; demonstrates a dropdown.
         effects (list): Unused; demonstrates a multiple-selection dropdown.
         enable_audio_labels (bool): Whether to emit labels over the audio.
         enable_midi_labels (bool): Whether to emit labels over the MIDI.
-        text_prompt (str): Unused; demonstrates a text box.
+        text_prompt (str): Written to the output file when no input file is given.
 
     Returns:
         output_audio_path (str): Path to the output audio.
@@ -205,10 +205,11 @@ def process_fn(
     # Echo the control values so they can be read back in HARP
     descriptions = {
         "sliders": f"processing_delay: {processing_delay}, gain: {gain}",
-        "dropdown": f"dropdown: {dropdown}, effects: {effects}, repetitions: {repetitions}",
+        "number": f"repetitions: {repetitions}",
+        "dropdowns": f"mode: {mode}, effects: {effects}",
         "checkboxes": (
-            f"enable_audio_labels: {enable_audio_labels}, "
-            f"enable_midi_labels: {enable_midi_labels}"
+            f"audio_labels: {enable_audio_labels}, "
+            f"midi_labels: {enable_midi_labels}"
         ),
         "text": f"text_prompt: {text_prompt}",
     }
@@ -270,27 +271,27 @@ with gr.Blocks() as demo:
             step=0.01,
             value=0.5,
             label="Gain",
-            info="A fractional slider."
+            info="A fractional slider (unused)."
         ),
         gr.Number(
             minimum=1,
             maximum=16,
             value=4,
             label="Repetitions",
-            info="A number box."
+            info="A number box (unused)."
         ),
         gr.Dropdown(
             choices=["first", "second", "third"],
             value="second",
             label="Mode",
-            info="A dropdown."
+            info="A dropdown (unused)."
         ),
         gr.Dropdown(
             choices=["reverb", "delay", "chorus"],
             value=["reverb", "chorus"],
             multiselect=True,
             label="Effects",
-            info="A dropdown allowing more than one selection."
+            info="A dropdown allowing more than one selection (unused)."
         ),
         gr.Checkbox(
             value=True,
@@ -305,7 +306,7 @@ with gr.Blocks() as demo:
         gr.Textbox(
             value="Hello World",
             label="Text Prompt",
-            info="A text box."
+            info="A text box. Written to the output file when no input file is given."
         ),
     ]
 
