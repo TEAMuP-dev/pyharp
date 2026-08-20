@@ -49,7 +49,7 @@ We provide several examples of how to create a PyHARP app under the `examples/` 
 
 All four share the same structure: a `ModelCard`, a `process_fn`, and a `gr.Blocks` block which passes lists of input and output components to `build_endpoint`. Start from whichever template matches your media types.
 
-In order to run an app, you will need to install its corresponding dependencies, including `gradio` and `pyharp`. For example, to install the dependences for our [pitch shifter](https://github.com/TEAMuP-dev/pyharp/tree/main/examples/pitch_shifter) example:
+In order to run an app, you will need to install its corresponding dependencies, including `gradio` and `pyharp`. For example, to install the dependencies for our [pitch shifter](examples/pitch_shifter) example:
 
 ```bash
 pip install -r examples/pitch_shifter/requirements.txt
@@ -317,12 +317,12 @@ with gr.Blocks() as demo:
 GUI elements corresponding to these labels will appear on the respective output tracks after processing in HARP.
 
 # Hosting Endpoints
-Automatically generated Gradio endpoints are only available for a maximum of 72 hours. If you'd like to keep an endpoint active and share it with other users, you can use [HuggingFace Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely. If you already have your own GPU machine, you can instead host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
+Automatically generated Gradio endpoints are only available for a maximum of 72 hours. If you'd like to keep an endpoint active and share it with other users, you can use [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely. If you already have your own GPU machine, you can instead host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
 
 ## Gradio Spaces
 This is the most convenient solution for hosting a PyHARP app. If you are a Hugging Face PRO subscriber, you can use [ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu) to dynamically allocate GPU resources according to user requests without any additional charges. Non-PRO users can select from CPU environments or paid GPU options.
 
-1. Create a new [HuggingFace Space](https://huggingface.co/new-space).
+1. Create a new [Hugging Face Space](https://huggingface.co/new-space).
 2. Choose Gradio as the SDK along with the blank template.
 3. Select the desired hardware option.
 4. Create the space and clone the initialized repository locally:
@@ -337,7 +337,7 @@ git push -u origin main
 ```
 6. Configure the following repository files:
    - `README.md`
-  
+
      Set __sdk_version__ to __6.24.0__, the recommended version of `gradio`. This is what the Space actually deploys with, so it must be set even though `gradio` is not listed in `requirements.txt`. Note that Gradio `4.x` and earlier are incompatible with HARP, and that versions before `6.13.0` cannot report error messages (see [Installing](#installing)).
 
    - `requirements.txt`
@@ -349,8 +349,8 @@ git push -u origin main
      Note that you do not have to include the `gradio` package in this file.
 
    - `packages.txt`
-     
-     Place any necessary **apt-get install** debian packages in this file. Some models may require these.
+
+     Place any necessary **apt-get install** Debian packages in this file. Some models may require these.
 
 ## Docker Spaces
 Some models were written against older versions of Python and cannot run alongside the current version of Gradio. For example, the `madmom` package relies on the `numpy.float` and `numpy.int` aliases removed in `numpy==1.24`, so it cannot share an environment with a package that requires a newer NumPy.
@@ -359,7 +359,7 @@ Rather than patching the model's source, keep the two apart: a **frontend** envi
 
 Our [BeatNet Space](https://huggingface.co/spaces/teamup-tech/BeatNet-dual) is a working example of this layout.
 
-1. Create a new [HuggingFace Space](https://huggingface.co/new-space).
+1. Create a new [Hugging Face Space](https://huggingface.co/new-space).
 2. Choose Docker as the SDK along with the blank template.
 3. Select the desired hardware option.
 4. Create the space and clone the initialized repository locally:
@@ -540,20 +540,20 @@ git push -u origin main
      ```
 
 ---
-Here are a few tips and best practices when dealing with HuggingFace Spaces:
+Here are a few tips and best practices when dealing with Hugging Face Spaces:
 - Spaces operate based off of the files in the `main` branch
-- An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to HuggingFace Spaces
+- An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to Hugging Face Spaces
 - A `.gitignore` file should be added to maintain repository orderliness (_e.g._, to ignore `_outputs`)
 - Pin versions for `numpy` (_e.g._, `<2`), `torch` (_e.g._, `==2.2.2`), and `torchaudio` (_e.g._, `==2.2.2`) to avoid unexpected build issues caused by the latest versions of these packages
 
-For more information, please refer to the offical document from Hugging Face about [Spaces](https://huggingface.co/docs/hub/spaces).
+For more information, please refer to the official documentation from Hugging Face about [Spaces](https://huggingface.co/docs/hub/spaces).
 
 ## Self-Hosted Endpoints
 Spaces are the quickest way to publish an app, but they cap the hardware you can use and require the model and its weights to be uploaded to Hugging Face. When you already have a GPU machine — a lab workstation or a compute node — you can host the app there instead and reach it from HARP over an SSH tunnel, keeping private weights and audio on your own hardware. This is also the setup that best showcases what HARP is for: heavy processing on remote compute, driven from a DAW on your laptop.
 
 1. **Load the model once, outside `process_fn`.**
 
-   Anything expensive belongs at module scope so that it is built when the app starts rather than on every request. Our [MIDI synthesizer](examples/midi_synthesizer) example does this with its soundfont, and a real model would be moved onto the GPU in the same place:
+   As described under [Pre-Trained Models](#pre-trained-models), anything expensive belongs at module scope. On a GPU machine this is where the weights are moved onto the device:
 
    ```python
    model = MyModel.from_pretrained(...).to("cuda")
@@ -563,8 +563,6 @@ Spaces are the quickest way to publish an app, but they cap the hardware you can
        signal = load_audio(input_audio_path)
        ...
    ```
-
-   Loading inside `process_fn` would transfer the weights to the GPU again for every request, which typically dominates the runtime.
 
 2. **Launch the app on the GPU machine, on a fixed port.**
 
@@ -593,6 +591,8 @@ The tunnel is what keeps the endpoint reachable; closing it disconnects HARP.
 If you would rather expose the app directly instead of tunnelling, launch it with `server_name="0.0.0.0"` (the API equivalent of Gradio's `--listen` flag) and use the machine's hostname in HARP. Be aware that this makes the app reachable by anyone who can route to that host and port, with no authentication, so restrict it with a firewall or pass `auth=("<USER>", "<PASSWORD>")` to `launch()`. Alternatively, `share=True` publishes a temporary public `gradio.live` URL that requires no network configuration at all, though it expires after 72 hours.
 
 ## Accessing Within HARP
-PyHARP apps deployed to HuggingFace will begin running at `https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>`. The shorthand `<USERNAME>/<SPACE_NAME>` can also be used within HARP to reference the endpoint. The Gradio and Docker Space options produce identical UIs and functionality.
+However a PyHARP app is hosted, it is loaded in HARP as a custom path:
 
-PyHARP apps can be accessed from within HARP through the local or forwarded URL corresponding to their active Gradio endpoints ([see above](#examples)), or the URL corresponding to their dedicated hosting service ([see above](#hosting-endpoints)), if applicable.
+- **Running locally**, use the local or forwarded URL printed on startup ([see above](#examples)), _e.g._ `http://localhost:7860` or `https://<RANDOM_ID>.gradio.live/`.
+- **Hosted on a Space**, use `https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>`, or just the shorthand `<USERNAME>/<SPACE_NAME>`. The Gradio and Docker Space options produce identical UIs and functionality.
+- **Self-hosted behind an SSH tunnel**, use the forwarded address ([see above](#self-hosted-endpoints)), _e.g._ `http://localhost:7860`.
