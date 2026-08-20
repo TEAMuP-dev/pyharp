@@ -5,7 +5,6 @@ from typing import List, Union, Dict
 __all__ = [
     'OutputLabel',
     'AudioLabel',
-    'SpectrogramLabel',
     'MidiLabel',
     'LabelList'
 ]
@@ -35,14 +34,10 @@ class AudioLabel(OutputLabel):
     amplitude: float = None
 
 @dataclass
-class SpectrogramLabel(OutputLabel):
-    frequency: float = None
-
-@dataclass
 class MidiLabel(OutputLabel):
     pitch: float = None
 
-LabelUnion = Union[AudioLabel, SpectrogramLabel, MidiLabel, OutputLabel]
+LabelUnion = Union[AudioLabel, MidiLabel, OutputLabel]
 
 @dataclass
 class LabelList:
