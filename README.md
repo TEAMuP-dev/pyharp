@@ -353,7 +353,7 @@ git push -u origin main
      Place any necessary **apt-get install** debian packages in this file. Some models may require these.
 
 ## Docker Spaces
-Some models were written against older versions of Python and cannot run alongside a current Gradio. For example, `madmom` relies on the `numpy.float` and `numpy.int` aliases removed in `numpy==1.24`, so it cannot share an environment with a package that requires a newer NumPy.
+Some models were written against older versions of Python and cannot run alongside the current version of Gradio. For example, the `madmom` package relies on the `numpy.float` and `numpy.int` aliases removed in `numpy==1.24`, so it cannot share an environment with a package that requires a newer NumPy.
 
 Rather than patching the model's source, keep the two apart: a **frontend** environment running Gradio and PyHARP, and a **backend** environment on the older Python running the model. The frontend invokes the backend as a subprocess and the two exchange JSON. Both live in a single Docker image, which a Gradio Space cannot express, hence a Docker Space. Note that ZeroGPU is not available for Docker Spaces, so GPU resources must be paid for with this option.
 
@@ -412,16 +412,28 @@ git push -u origin main
 
    - `app.py`
 
-     The usual PyHARP app, except that `process_fn` reaches the model through a subprocess. Raising `gr.Error` on failure surfaces the backend's own message in HARP ([see above](#error-reporting)):
+     An ordinary PyHARP app, except that `process_fn` reaches the model through a subprocess rather than importing it. Raising `gr.Error` on failure surfaces the backend's own message in HARP ([see above](#error-reporting)):
      ```python
-     import json
-     import os
-     import subprocess
+     from pyharp import ModelCard, build_endpoint
 
      import gradio as gr
 
+     import subprocess
+     import json
+     import os
+
+
+     model_card = ModelCard(
+         name="Legacy Model",
+         description="An example model which runs under an older version of Python.",
+         author="TEAMuP",
+         tags=["example", "docker", "dual environment"],
+     )
+
 
      def call_backend(input_path: str, timeout_s: float = 120.0):
+         """Run the model under the backend interpreter and return its result."""
+
          completed = subprocess.run(
              [os.environ["BACKEND_PYTHON"], os.environ["BACKEND_SCRIPT"], input_path],
              capture_output=True,
@@ -439,9 +451,35 @@ git push -u origin main
              raise gr.Error(response["error"])
 
          return response["result"]
-     ```
-     The app must also listen on the port the Space routes traffic to, and must bind to all interfaces so that requests can reach it from outside the container:
-     ```python
+
+
+     def process_fn(input_audio_path: str) -> str:
+         # Nothing here imports the model; it only ever runs in the backend environment
+         result = call_backend(input_audio_path)
+
+         ... # Turn the result into the output
+
+         return output_audio_path
+
+
+     with gr.Blocks() as demo:
+         input_components = [
+             gr.Audio(type="filepath", label="Input Audio").harp_required(True),
+         ]
+
+         output_components = [
+             gr.Audio(type="filepath", label="Output Audio"),
+         ]
+
+         app = build_endpoint(
+             model_card=model_card,
+             input_components=input_components,
+             output_components=output_components,
+             process_fn=process_fn,
+         )
+
+     # The Space routes traffic to $PORT, and the app must bind to all interfaces
+     # so that requests can reach it from outside the container
      demo.queue().launch(
          server_name="0.0.0.0",
          server_port=int(os.environ["PORT"]),
