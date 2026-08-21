@@ -1,301 +1,336 @@
+"""
+UI Tester: a reference app exercising every PyHARP feature.
+
+Unlike the other examples, this app does no real processing. It exists to
+verify that HARP renders each supported input control, each track type, and
+each output label type correctly. Use it as a lookup for how a given
+component is declared, and as a smoke test after changing HARP's UI.
+
+Covered here:
+  - Track inputs and outputs: audio and MIDI
+  - Generic file input and output (a file picker rather than a track)
+  - Every control type: slider, number box, dropdown (single and
+    multiple selection), checkbox, text box
+  - Optional inputs, via harp_required(False)
+  - Control and output descriptions, via set_info()
+  - Output labels over both audio and MIDI, with every label field
+"""
+
 from pyharp import *
 
-from typing import Tuple
+from typing import Optional, Tuple
 import gradio as gr
 
-import tempfile
-import requests
-import shutil
 import time
 import os
 
 
-# Create a ModelCard
+# Reference media, used only when the corresponding input track is left empty.
+# Bundled alongside this app so it also works offline and once deployed.
+RESOURCE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources")
+REFERENCE_AUDIO_PATH = os.path.join(RESOURCE_DIR, "test.wav")
+REFERENCE_MIDI_PATH = os.path.join(RESOURCE_DIR, "test.mid")
+
+# Metadata shown in HARP's model info panel
 model_card = ModelCard(
-    name="UI Test for HARP 3.0.0",
-    description=\
-        '''This is a test for the new UI features in HARP 3.0.0. The audio input is not used. You can click "process" without loading an audio file. Use the "Dropdown 1" to select the output audio file. The audio labels are added at 0%, 50%, and 100% - 1sec of the audio duration and 0, 0.5, and 1 of the amplitude.''',
+    name="UI Tester",
+    description=(
+        "Exercises every input control, track type, and output label type "
+        "supported by HARP. No real processing is performed: input tracks are "
+        "passed through unchanged, and bundled reference media is substituted for any "
+        "track left empty, so the app can be run without loading anything. "
+        "The control values are echoed into the output label descriptions."
+    ),
     author="TEAMuP",
-    tags=["example", "ui", "test"],
+    tags=["example", "ui", "test", "v3"],
 )
 
-def download_file(url):
+
+def build_audio_labels(duration: float, descriptions: dict) -> list:
     """
-    Download a file from GitHub to a local temporary file.
+    Build one audio label of each supported variety.
+
+    A label with an amplitude is drawn as an overlay on the waveform, and one
+    without is drawn in the overhead strip above it.
 
     Args:
-        url (str): Path to file to download.
+        duration (float): Duration of the output audio, in seconds.
+        descriptions (dict): Control values to echo into the labels.
 
     Returns:
-        temp_file_path (str): Path to created temporary file.
-
-    Raises:
-        HTTPError: If download is unsuccessful.
+        labels (list): The constructed AudioLabel objects.
     """
 
-    if "github.com" in url and "/blob/" in url:
-        # Convert GitHub blob URL to raw content URL
-        url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
+    return [
+        # Overhead, at the start, with a clickable link
+        AudioLabel(
+            t=0.0,
+            label="start",
+            duration=1.0,
+            description=descriptions["sliders"],
+            color=OutputLabel.rgb_color_to_int(0, 255, 0),
+            link="https://github.com/TEAMuP-dev/pyharp"
+        ),
+        # Overlay, pinned to the bottom of the waveform
+        AudioLabel(
+            t=0.0,
+            label="amplitude 0.0",
+            duration=1.0,
+            description=descriptions["dropdowns"],
+            color=OutputLabel.rgb_color_to_int(28, 102, 48),
+            amplitude=0.0
+        ),
+        # Overlay, pinned to the middle of the waveform
+        AudioLabel(
+            t=0.5 * duration,
+            label="amplitude 0.5",
+            duration=1.0,
+            description=descriptions["checkboxes"],
+            color=OutputLabel.rgb_color_to_int(102, 28, 48),
+            amplitude=0.5
+        ),
+        # Overhead, at the end, with no duration (a marker rather than a span)
+        AudioLabel(
+            t=duration,
+            label="end",
+            duration=0.0,
+            description=descriptions["text"],
+            color=OutputLabel.rgb_color_to_int(0, 0, 255)
+        ),
+    ]
 
-    # Determine file extension
-    ext = os.path.splitext(url)[1]
 
-    # Create a temporary file
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-    temp_file.close()
+def build_midi_labels(descriptions: dict) -> list:
+    """
+    Build one MIDI label of each supported variety.
 
-    temp_file_path = temp_file.name
+    A label with a pitch is drawn as an overlay on the corresponding piano
+    roll row, and one without is drawn in the overhead strip above it.
 
-    # Download file at provided path
-    response = requests.get(url, stream=True)
-    # Ensure we got a valid response
-    response.raise_for_status()
+    Args:
+        descriptions (dict): Control values to echo into the labels.
 
-    with open(temp_file_path, 'wb') as f:
-        # Write the data to the temporary file
-        shutil.copyfileobj(response.raw, f)
-    
-    return temp_file_path
+    Returns:
+        labels (list): The constructed MidiLabel objects.
+    """
 
-# Define the process function
+    return [
+        # Overhead, spanning the first second
+        MidiLabel(
+            t=0.0,
+            label="start",
+            duration=1.0,
+            description=descriptions["number"],
+            color=OutputLabel.rgb_color_to_int(255, 255, 0)
+        ),
+        # Overlay, on the piano roll row for the given pitch
+        MidiLabel(
+            t=0.0,
+            label="pitch 76",
+            duration=1.0,
+            description=descriptions["text"],
+            color=OutputLabel.rgb_color_to_int(255, 128, 78),
+            pitch=76
+        ),
+        # Overlay, as a marker with a clickable link
+        MidiLabel(
+            t=1.0,
+            label="pitch 86",
+            duration=0.0,
+            color=OutputLabel.rgb_color_to_int(78, 128, 255),
+            link="https://github.com/TEAMuP-dev/pyharp",
+            pitch=86
+        ),
+    ]
+
+
 def process_fn(
-    input_audio_path, # unused
-    generic_file_path,
-    slider_1_time_sleep,
-    slider_2,
-    slider_3,
-    dropdown_1,
-    dropdown_2,
-    checkbox_1,
-    checkbox_2,
-    checkbox_3,
-    text_control
-) -> Tuple[str, str, LabelList]:
-    # Paths to files to use for output
-    audio_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.wav"
-    midi_url = "https://github.com/TEAMuP-dev/HARP/blob/main/resources/media/test.mid"
+    input_audio_path: Optional[str],
+    input_midi_path: Optional[str],
+    input_file_path: Optional[str],
+    processing_delay: float,
+    gain: float,
+    repetitions: float,
+    mode: str,
+    effects: list,
+    enable_audio_labels: bool,
+    enable_midi_labels: bool,
+    text_prompt: str
+) -> Tuple[str, str, LabelList, str]:
+    """
+    Pass the input tracks through and annotate them with output labels.
 
-    # Download audio and MIDI file
-    local_audio_path = download_file(audio_url)
-    local_midi_path = download_file(midi_url)
+    Args:
+        input_audio_path (Optional[str]): Audio track, or None if left empty.
+        input_midi_path (Optional[str]): MIDI track, or None if left empty.
+        input_file_path (Optional[str]): Generic file, or None if left empty.
+        processing_delay (float): Seconds to sleep, to test HARP's cancel button.
+        gain (float): Unused; demonstrates a fractional slider.
+        repetitions (float): Unused; demonstrates a number box.
+        mode (str): Unused; demonstrates a dropdown.
+        effects (list): Unused; demonstrates a multiple-selection dropdown.
+        enable_audio_labels (bool): Whether to emit labels over the audio.
+        enable_midi_labels (bool): Whether to emit labels over the MIDI.
+        text_prompt (str): Written to the output file when no input file is given.
 
-    # Load audio and MIDI data
-    audio = load_audio(local_audio_path)
-    midi = load_midi(local_midi_path)
+    Returns:
+        output_audio_path (str): Path to the output audio.
+        output_midi_path (str): Path to the output MIDI.
+        output_labels (LabelList): Labels drawn over the output tracks.
+        output_file_path (str): Path to the generic output file.
+    """
 
-    try:
-        # Clean up temporary files
-        os.unlink(local_audio_path)
-        os.unlink(local_midi_path)
-    except Exception as e:
-        print(f"Failed to clean up temporary files: {e}")
+    if input_audio_path is None:
+        input_audio_path = REFERENCE_AUDIO_PATH
 
-    # Save downloaded data to output
-    output_audio_path = save_audio(audio)
-    output_midi_path = save_midi(midi)
+    if input_midi_path is None:
+        input_midi_path = REFERENCE_MIDI_PATH
 
-    if generic_file_path is None:
-        generic_file_path = get_default_path(".txt")
+    audio = load_audio(input_audio_path)
+    midi = load_midi(input_midi_path)
 
-        with open(generic_file_path, "w") as f:
-            f.write("generic file output")
+    output_audio_path = str(save_audio(audio))
+    output_midi_path = str(save_midi(midi))
 
-    # Create an empty label list
+    # A generic file input arrives as a path, and is echoed back unchanged.
+    # When none is provided, write one so the output component is populated.
+    if input_file_path is None:
+        output_file_path = get_default_path(".txt")
+
+        with open(output_file_path, "w") as f:
+            f.write(f"text_prompt: {text_prompt}\n")
+    else:
+        output_file_path = input_file_path
+
+    # Echo the control values so they can be read back in HARP
+    descriptions = {
+        "sliders": f"processing_delay: {processing_delay}, gain: {gain}",
+        "number": f"repetitions: {repetitions}",
+        "dropdowns": f"mode: {mode}, effects: {effects}",
+        "checkboxes": (
+            f"audio_labels: {enable_audio_labels}, "
+            f"midi_labels: {enable_midi_labels}"
+        ),
+        "text": f"text_prompt: {text_prompt}",
+    }
+
     output_labels = LabelList()
 
-    # Determine total duration of audio in seconds
-    duration = audio.audio_data.shape[2] / audio.sample_rate
+    if enable_audio_labels:
+        # Total duration of the audio, in seconds
+        duration = audio.audio_data.shape[-1] / audio.sample_rate
+        output_labels.labels.extend(build_audio_labels(duration, descriptions))
 
-    # Convert input controls to text
-    descr_1 = f"dropdown_1: {dropdown_1}, dropdown_2: {dropdown_2}"
-    descr_2 = f"checkbox_1: {checkbox_1}, checkbox_2: {checkbox_2} checkbox_3: {checkbox_3}"
-    descr_3 = f"text_control: {text_control}"
-    descr_4 = f"slider_1_time_sleep: {slider_1_time_sleep}, slider_2: {slider_2}, slider_3: {slider_3}"
+    if enable_midi_labels:
+        output_labels.labels.extend(build_midi_labels(descriptions))
 
-    # Add dummy waveform labels
-    output_labels.labels.extend(
-        [
-            AudioLabel(
-                t=0,
-                label="ol-t0-d1",
-                duration=1,
-                color=OutputLabel.rgb_color_to_int(0, 255, 0),
-                link="https://github.com/TEAMuP-dev/pyharp"
-            ),
-            AudioLabel(
-                t=0,
-                label="lo-t0-d1-a0",
-                duration=1,
-                description=descr_1,
-                color=OutputLabel.rgb_color_to_int(28, 102, 48),
-                amplitude=0
-            ),
-            AudioLabel(
-                t=(0.5 * duration),
-                label="ol-t50%-d0",
-                duration=0,
-                description=descr_4,
-                color=OutputLabel.rgb_color_to_int(255, 0, 0)
-            ),
-            AudioLabel(
-                t=(0.5 * duration),
-                label="lo-t50%-d1-a0.5",
-                duration=1,
-                description=descr_2,
-                color=OutputLabel.rgb_color_to_int(102, 28, 48),
-                link="https://github.com/TEAMuP-dev/pyharp",
-                amplitude=0.5
-            ),
-            AudioLabel(
-                t=(duration - 1),
-                label="lo-t100%minus1-d1-a1",
-                duration=1,
-                description=descr_3,
-                color=OutputLabel.rgb_color_to_int(48, 102, 28),
-                amplitude=1
-            ),
-            AudioLabel(
-                t=(1.0 * duration),
-                label="ol-t100%-d0.1",
-                duration=0.1,
-                description="last overhead label",
-                color=OutputLabel.rgb_color_to_int(0, 0, 255)
-            ),
-        ]
-    )
+    # Stall so that HARP's cancel button and status area can be exercised
+    time.sleep(float(processing_delay))
 
-    # Add dummy MIDI labels
-    output_labels.labels.extend(
-        [
-            MidiLabel(
-                t=0,
-                label="ol-t0-d1",
-                duration=1,
-                description="first overhead label",
-                color=OutputLabel.rgb_color_to_int(255, 255, 0)
-            ),
-            MidiLabel(
-                t=0,
-                label="lo-t0-d1-p76",
-                duration=1,
-                description="first label overlay",
-                color=OutputLabel.rgb_color_to_int(255, 128, 78),
-                pitch=76
-            ),
-            MidiLabel(
-                t=1,
-                label="lo-t1-d0-p86",
-                duration=0,
-                color=OutputLabel.rgb_color_to_int(78, 128, 255),
-                link="https://github.com/TEAMuP-dev/pyharp",
-                pitch=86
-            ),
-            MidiLabel(
-                t=1.5,
-                label="ol-t1.5-d0.1",
-                duration=0.1,
-                description="second overhead label",
-                color=OutputLabel.rgb_color_to_int(0, 255, 255)
-            ),
-        ]
-    )
-
-    # Delay return for chosen amount of time
-    time.sleep(int(slider_1_time_sleep))
-
-    return output_audio_path, output_midi_path, output_labels, generic_file_path
+    return output_audio_path, output_midi_path, output_labels, output_file_path
 
 
-# Build Gradio endpoint
+# Build the Gradio endpoint
 with gr.Blocks() as demo:
-    # Define input Gradio Components
+    # Audio and MIDI components become tracks in HARP. A gr.File with any
+    # other extension becomes a GUI file picker instead. Every input here is
+    # optional, so the app can be run without loading anything.
+    # Order must match the process_fn signature.
     input_components = [
-        gr.Audio(type="filepath",
-                 label="Optional AudioInp")
+        gr.Audio(
+            type="filepath",
+            label="Input Audio"
+        )
         .harp_required(False)
-        .set_info('This is an optional input track that has no effect on the output.'),
+        .set_info("Passed through unchanged. Bundled reference audio is used if empty."),
         gr.File(
             type="filepath",
-            label="Generic Config File",
+            label="Input MIDI",
+            file_types=[".mid", ".midi"]
+        )
+        .harp_required(False)
+        .set_info("Passed through unchanged. Bundled reference MIDI is used if empty."),
+        gr.File(
+            type="filepath",
+            label="Input File",
             file_types=[".txt", ".csv", ".json", ".nam"]
         )
-        .set_info("Select a generic file input. HARP should show this as a GUI file picker, not an input track.")
-        .harp_required(False),
+        .harp_required(False)
+        .set_info("A generic file. HARP shows this as a file picker, not a track."),
         gr.Slider(
             minimum=0,
-            maximum=100,
+            maximum=60,
             step=1,
             value=0,
-            label="Time delay (s)",
-            info="slider1"
+            label="Processing Delay (s)",
+            info="Stalls processing, so the cancel button can be tested."
         ),
         gr.Slider(
             minimum=0.0,
             maximum=1.0,
             step=0.01,
             value=0.5,
-            label="Slider 2"
+            label="Gain",
+            info="A fractional slider (unused)."
         ),
-        gr.Slider(
-            minimum=-20,
-            maximum=20,
-            step=1,
-            value=0,
-            label="Slider 3",
-            info="slider3"
-        ),
-        gr.Dropdown(
-            choices=["sad-cry.wav", "5-second.mp3", "Guiro.wav", "Claves.wav",
-                     "test.wav", "test-w-gap.wav", "test-w-gap-stereo.wav"],
-            value="5-second.mp3",
-            label="Dropdown 1",
-            info="dropdown1"
+        gr.Number(
+            minimum=1,
+            maximum=16,
+            value=4,
+            label="Repetitions",
+            info="A number box (unused)."
         ),
         gr.Dropdown(
-            choices=["choice1", "choice2"],
-            value="choice2",
-            label="Dropdown 2",
-            info="dropdown2"
+            choices=["first", "second", "third"],
+            value="second",
+            label="Mode",
+            info="A dropdown (unused)."
+        ),
+        gr.Dropdown(
+            choices=["reverb", "delay", "chorus"],
+            value=["reverb", "chorus"],
+            multiselect=True,
+            label="Effects",
+            info="A dropdown allowing more than one selection (unused)."
         ),
         gr.Checkbox(
             value=True,
-            label="Checkbox 1",
-            info="checkbox1"
+            label="Audio Labels",
+            info="Emit output labels over the audio track."
         ),
         gr.Checkbox(
             value=True,
-            label="Checkbox 2"
-        ),
-        gr.Checkbox(
-            value=True,
-            label="Checkbox 3",
-            info="checkbox1"
+            label="MIDI Labels",
+            info="Emit output labels over the MIDI track."
         ),
         gr.Textbox(
             value="Hello World",
-            label="Input Text Prompt",
-            info="textbox"
-        )
+            label="Text Prompt",
+            info="A text box. Written to the output file when no input file is given."
+        ),
     ]
 
-    # Define output Gradio Components
+    # A gr.JSON output receives the LabelList and is drawn over the tracks.
+    # Order must match the values returned by process_fn.
     output_components = [
-        gr.Audio(type="filepath",
-                 label="Output Audio")
-        .set_info("Audio file."),
-        gr.File(type="filepath",
-                label="Output Midi",
-                file_types=[".mid", ".midi"])
-        .set_info("MIDI file."),
-        gr.JSON(label="Output Labels"),
+        gr.Audio(
+            type="filepath",
+            label="Output Audio"
+        ).set_info("The input audio, unchanged."),
+        gr.File(
+            type="filepath",
+            label="Output MIDI",
+            file_types=[".mid", ".midi"]
+        ).set_info("The input MIDI, unchanged."),
+        gr.JSON(
+            label="Output Labels"
+        ).set_info("Labels drawn over the output tracks."),
         gr.File(
             type="filepath",
             label="Output File"
-        )
-        .set_info("Generic file."),
+        ).set_info("A generic file output."),
     ]
 
-    # Build a HARP-compatible endpoint
     app = build_endpoint(
         model_card=model_card,
         input_components=input_components,
@@ -303,4 +338,4 @@ with gr.Blocks() as demo:
         process_fn=process_fn,
     )
 
-demo.queue().launch(share=True, show_error=False, pwa=True)
+demo.queue().launch(share=True, show_error=True, pwa=True)

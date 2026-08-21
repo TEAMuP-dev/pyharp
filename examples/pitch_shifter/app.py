@@ -1,3 +1,10 @@
+"""
+Pitch Shifter: an audio-to-audio template for PyHARP.
+
+Demonstrates the simplest useful shape for a HARP app: one required audio
+input track, one slider control, and one audio output track.
+"""
+
 from pyharp import *
 
 import gradio as gr
@@ -5,63 +12,70 @@ import torchaudio
 import torch
 
 
-# Create a ModelCard
+# Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="Pitch Shifter",
     description="A pitch shifting example for HARP v3.",
     author="TEAMuP",
-    tags=["example", "pitch shift", 'v3'],
+    tags=["example", "audio", "pitch shift", "v3"],
 )
 
-# Define the process function
+
 @torch.inference_mode()
-def process_fn(
-    input_audio_path: str,
-    pitch_shift_amount: int
-) -> str:
+def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
+    """
+    Shift the pitch of the input audio.
 
-    pitch_shift_amount = int(pitch_shift_amount)
+    Args:
+        input_audio_path (str): Path to the audio file sent by HARP.
+        pitch_shift_amount (int): Amount to shift by, in semitones.
 
-    sig = load_audio(input_audio_path)
+    Returns:
+        output_audio_path (str): Path to the pitch-shifted audio.
+    """
 
-    ps = torchaudio.transforms.PitchShift(
-        sig.sample_rate,
-        n_steps=pitch_shift_amount,
+    signal = load_audio(input_audio_path)
+
+    pitch_shift = torchaudio.transforms.PitchShift(
+        signal.sample_rate,
+        n_steps=int(pitch_shift_amount),
         bins_per_octave=12,
         n_fft=512
     )
-    sig.audio_data = ps(sig.audio_data)
+    signal.audio_data = pitch_shift(signal.audio_data)
 
-    output_audio_path = str(save_audio(sig))
+    output_audio_path = str(save_audio(signal))
 
     return output_audio_path
 
 
-# Build Gradio endpoint
+# Build the Gradio endpoint
 with gr.Blocks() as demo:
-    # Define input Gradio Components
+    # Audio and MIDI components become tracks in HARP; everything else
+    # becomes a GUI control. Order must match the process_fn signature.
     input_components = [
-        gr.Audio(type="filepath",
-                 label="Input Audio A")
-        .harp_required(True),
+        gr.Audio(
+            type="filepath",
+            label="Input Audio"
+        ).harp_required(True),
         gr.Slider(
             minimum=-24,
             maximum=24,
             step=1,
             value=7,
             label="Pitch Shift (semitones)",
-            info="Controls the amount of pitch shift in semitones"
+            info="Amount to shift the pitch by."
         ),
     ]
 
-    # Define output Gradio Components
+    # Order must match the values returned by process_fn
     output_components = [
-        gr.Audio(type="filepath",
-                 label="Output Audio")
-        .set_info("The pitch-shifted audio."),
+        gr.Audio(
+            type="filepath",
+            label="Output Audio"
+        ).set_info("The pitch-shifted audio."),
     ]
 
-    # Build a HARP-compatible endpoint
     app = build_endpoint(
         model_card=model_card,
         input_components=input_components,
@@ -69,4 +83,4 @@ with gr.Blocks() as demo:
         process_fn=process_fn,
     )
 
-demo.queue().launch(share=True, show_error=False, pwa=True)
+demo.queue().launch(share=True, show_error=True, pwa=True)
