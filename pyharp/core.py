@@ -67,6 +67,7 @@ class HarpDropdown(HarpComponent):
 class HarpNumberBox(HarpComponent):
     minimum: float
     maximum: float
+    step: float
     value: float
     type: str = "number_box"
 
@@ -180,6 +181,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             value=gr_cmp.value,
             minimum=gr_cmp.minimum,
             maximum=gr_cmp.maximum,
+            step=gr_cmp.step,
             info=gr_cmp.info
         )
     else:
