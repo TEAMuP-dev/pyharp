@@ -276,6 +276,7 @@ with gr.Blocks() as demo:
         gr.Number(
             minimum=1,
             maximum=16,
+            step=1,
             value=4,
             label="Repetitions",
             info="A number box (unused)."
