@@ -17,6 +17,7 @@ PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP)
 * **[Hosting Endpoints](#hosting-endpoints)**
     * **[Gradio Spaces](#gradio-spaces)**
     * **[Docker Spaces](#docker-spaces)**
+    * **[Binary Files](#binary-files)**
     * **[Self-Hosted Endpoints](#self-hosted-endpoints)**
     * **[Accessing Within HARP](#accessing-within-harp)**
 
@@ -111,7 +112,7 @@ Note that by default PyHARP uses the [audiotools](https://github.com/descriptinc
 ## Pre-Trained Models
 If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
 - Load the model outside of `process_fn` so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)).
-- Store model weights within your app repository. The Hub keeps large files out of Git itself, through [Xet](https://huggingface.co/docs/hub/xet/index) on repositories created since May 2025 and [Git LFS](https://git-lfs.com/) on older ones. A Space is initialized with a `.gitattributes` that already routes common weight extensions, so a plain `git add` is enough. Keep those patterns specific (_e.g._ `*.safetensors`) so that smaller files are not sent through large-file storage.
+- Store model weights within your app repository. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
 
 ## Gradio Endpoint
 The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls.
@@ -165,7 +166,7 @@ demo.queue().launch(share=True, show_error=True, pwa=True)
 A few requirements are easy to miss:
 - Every `gr.Audio` component must set `type="filepath"`.
 - The order of `input_components` must match the arguments of `process_fn`, and the order of `output_components` must match its return values.
-- `demo.queue()` must be called, otherwise an ongoing job cannot be cancelled from HARP.
+- `demo.queue()` must be called, otherwise an ongoing job cannot be canceled from HARP.
 - `show_error=True` lets HARP report why a job failed ([see below](#error-reporting)).
 
 Audio and File components accept two PyHARP extensions: `.harp_required(False)` marks an input as optional, and `.set_info("...")` attaches instructions for HARP to display. Both of these extensions are shown in our [UI tester](examples/ui_tester/app.py). Note that only track and generic file inputs can be made optional. GUI controls always carry a value.
@@ -555,6 +556,50 @@ Here are a few tips and best practices when dealing with Hugging Face Spaces:
 - Pin versions for `numpy` (_e.g._, `<2`), `torch` (_e.g._, `==2.2.2`), and `torchaudio` (_e.g._, `==2.2.2`) to avoid unexpected build issues caused by the latest versions of these packages
 
 For more information, please refer to the official documentation from Hugging Face about [Spaces](https://huggingface.co/docs/hub/spaces).
+
+## Binary Files
+
+The Hub rejects any push that adds a binary file to Git directly:
+
+```
+remote: Your push was rejected because it contains binary files.
+remote: Please use https://huggingface.co/docs/hub/xet to store binary files.
+```
+
+Despite what that message points at, the mechanism is still [Git LFS](https://git-lfs.com/). A binary
+file has to be committed as an LFS pointer, and `.gitattributes` is what decides that.
+[Xet](https://huggingface.co/docs/hub/xet/index) is the Hub's storage backend for those pointers, and
+`git-xet` is an optional LFS *transfer agent* that uploads them faster — it registers itself under
+`lfs.customtransfer.xet` and changes nothing about what gets committed. Installing it does not fix
+this error, and not installing it does not cause it.
+
+A new Space comes with a `.gitattributes` covering common weight extensions (`*.safetensors`, `*.bin`,
+`*.ckpt`, `*.pt`, …). However, other file types (_e.g._, audio or MIDI) must be added manually:
+
+```bash
+git lfs install                       # once per machine
+git lfs track "*.wav" "*.mid"         # writes the patterns into .gitattributes
+git add .gitattributes
+```
+
+Keep the patterns specific, so that smaller files are not sent through large-file storage.
+
+The order matters, and is the usual reason this still fails after `.gitattributes` looks right:
+**`.gitattributes` only applies to files staged after it exists.** A binary already sitting in an
+earlier commit stays a raw blob there, and the Hub rejects the push over that commit even though the
+tip is now a pointer. Rewrite the history to convert it:
+
+```bash
+git lfs migrate import --include="*.wav,*.mid" --everything
+git push
+```
+
+To confirm a file is a pointer before pushing, check its size in Git — a pointer is a couple of
+hundred bytes, whatever the file weighs on disk:
+
+```bash
+git cat-file -s HEAD:resources/test.wav
+```
 
 ## Self-Hosted Endpoints
 Spaces are the quickest way to publish an app, but they cap the hardware you can use and require the model and its weights to be uploaded to Hugging Face. When you already have a GPU machine, such as a lab workstation or a compute node, you can host the app there instead and reach it from HARP over an SSH tunnel, keeping private weights and audio on your own hardware. This is also the setup that best showcases what HARP is for: heavy processing on remote compute, driven from a DAW on your laptop.
