@@ -57,30 +57,31 @@ def process_fn(input_midi_path: str) -> str:
     return output_audio_path
 
 
-# Build the Gradio endpoint
-with gr.Blocks() as demo:
-    # Order must match the process_fn signature
-    input_components = [
-        gr.File(
-            type="filepath",
-            label="Input MIDI",
-            file_types=[".mid", ".midi"]
-        ).harp_required(True),
-    ]
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # Order must match the process_fn signature
+        input_components = [
+            gr.File(
+                type="filepath",
+                label="Input MIDI",
+                file_types=[".mid", ".midi"]
+            ).harp_required(True),
+        ]
 
-    # Order must match the values returned by process_fn
-    output_components = [
-        gr.Audio(
-            type="filepath",
-            label="Output Audio"
-        ).set_info("The synthesized audio."),
-    ]
+        # Order must match the values returned by process_fn
+        output_components = [
+            gr.Audio(
+                type="filepath",
+                label="Output Audio"
+            ).set_info("The synthesized audio."),
+        ]
 
-    app = build_endpoint(
-        model_card=model_card,
-        input_components=input_components,
-        output_components=output_components,
-        process_fn=process_fn,
-    )
+        app = build_endpoint(
+            model_card=model_card,
+            input_components=input_components,
+            output_components=output_components,
+            process_fn=process_fn,
+        )
 
-demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True)
