@@ -1,6 +1,6 @@
 from gradio.components.base import Component
 from dataclasses import dataclass, asdict
-from typing import List
+from typing import List, Union
 
 import multiprocessing as mp
 import threading
@@ -39,6 +39,12 @@ class HarpMidiTrack(HarpComponent):
     type: str = "midi_track"
 
 @dataclass
+class HarpFileComponent(HarpComponent):
+    required: bool
+    file_types: List[str]
+    type: str = "generic_file"
+
+@dataclass
 class HarpSlider(HarpComponent):
     minimum: float
     maximum: float
@@ -59,14 +65,16 @@ class HarpToggle(HarpComponent):
 @dataclass
 class HarpDropdown(HarpComponent):
     choices: List[str]
-    value: str
+    value: Union[str, List[str]]
+    multiselect: bool = False
     type: str = "dropdown"
 
 @dataclass
 class HarpNumberBox(HarpComponent):
     minimum: float
     maximum: float
-    value: bool
+    step: float
+    value: float
     type: str = "number_box"
 
 @dataclass
@@ -121,15 +129,23 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             info=gr_cmp.info,
             required=gr_cmp.is_harp_required
         )
-    elif isinstance(gr_cmp, gr.File) \
-          and('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
+    elif isinstance(gr_cmp, gr.File):
         assert gr_cmp.type == "filepath", \
             f"File input must be of type filepath, not {gr_cmp.type}"
-        harp_cmp = HarpMidiTrack(
-            label=gr_cmp.label,
-            info=gr_cmp.info,
-            required=gr_cmp.is_harp_required
-        )
+
+        if gr_cmp.file_types is not None and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
+            harp_cmp = HarpMidiTrack(
+                label=gr_cmp.label,
+                info=gr_cmp.info,
+                required=gr_cmp.is_harp_required
+            )
+        else:
+            harp_cmp = HarpFileComponent(
+                label=gr_cmp.label,
+                info=gr_cmp.info,
+                required=gr_cmp.is_harp_required,
+                file_types=gr_cmp.file_types if gr_cmp.file_types is not None else []
+            )
     elif isinstance(gr_cmp, gr.Slider):
         harp_cmp = HarpSlider(
             minimum=gr_cmp.minimum,
@@ -152,12 +168,12 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             info=gr_cmp.info
         )
     elif isinstance(gr_cmp, gr.Dropdown):
-        # TODO - currently no support for multiselect
         harp_cmp = HarpDropdown(
             label=gr_cmp.label,
             choices=gr_cmp.choices,
             value=gr_cmp.value,
-            info=gr_cmp.info
+            info=gr_cmp.info,
+            multiselect=bool(gr_cmp.multiselect)
         )
     elif isinstance(gr_cmp, gr.JSON):
         harp_cmp = HarpJSON(
@@ -171,6 +187,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
             value=gr_cmp.value,
             minimum=gr_cmp.minimum,
             maximum=gr_cmp.maximum,
+            step=gr_cmp.step,
             info=gr_cmp.info
         )
     else:
@@ -261,7 +278,7 @@ class JobSupervisor:
         self._result_q = None
 
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
-                   process_fn: callable, timeout_s: int = 900) -> tuple:
+                   process_fn: callable, show_controls: bool = False, timeout_s: int = 900) -> tuple:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -290,6 +307,14 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             - If the Cancel button is pressed, or if process_fn runs longer
               than timeout_s, the subprocess is killed (SIGTERM) and the job
               is aborted.
+        show_controls (bool): Whether to show the "View Controls" button and the JSON box
+            holding the control data.
+            - These exist only so that HARP can read the model's interface, and mean
+              nothing to someone opening the Gradio page, so they are hidden by default.
+            - The "Process" and "Cancel" buttons are always shown, since they are useful
+              to someone running the model from the Gradio page directly.
+            - HARP is unaffected either way, since it calls the endpoints rather than
+              clicking the buttons.
         timeout_s (int): Maximum time in seconds to let process_fn run before
             it is forcibly killed. Defaults to 900 (15 minutes). Increase this
             for models that need more time to process their inputs.
@@ -316,10 +341,10 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         return data
 
     # Create a component to store the control data
-    controls_data = gr.JSON(label="Controls Data")
+    controls_data = gr.JSON(label="Controls Data", visible=show_controls)
 
     # Create a button to fetch model control data
-    controls_button = gr.Button("View Controls")
+    controls_button = gr.Button("View Controls", visible=show_controls)
     controls_button.click(
         fn=fetch_model_info,
         inputs=[],
