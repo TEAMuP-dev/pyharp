@@ -42,40 +42,42 @@ def process_fn(input_midi_path: str, pitch_shift_amount: int) -> str:
     return output_midi_path
 
 
-# Build the Gradio endpoint
-with gr.Blocks() as demo:
-    # A gr.File restricted to MIDI extensions becomes a MIDI track in HARP.
-    # Order must match the process_fn signature.
-    input_components = [
-        gr.File(
-            type="filepath",
-            label="Input MIDI",
-            file_types=[".mid", ".midi"]
-        ).harp_required(True),
-        gr.Slider(
-            minimum=-24,
-            maximum=24,
-            step=1,
-            value=7,
-            label="Pitch Shift (semitones)",
-            info="Amount to transpose by."
-        ),
-    ]
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # A gr.File restricted to MIDI extensions becomes a MIDI track in HARP.
+        # Order must match the process_fn signature.
+        input_components = [
+            gr.File(
+                type="filepath",
+                label="Input MIDI",
+                file_types=[".mid", ".midi"]
+            ).harp_required(True),
+            gr.Slider(
+                minimum=-24,
+                maximum=24,
+                step=1,
+                value=7,
+                label="Pitch Shift (semitones)",
+                info="Amount to transpose by."
+            ),
+        ]
 
-    # Order must match the values returned by process_fn
-    output_components = [
-        gr.File(
-            type="filepath",
-            label="Output MIDI",
-            file_types=[".mid", ".midi"]
-        ).set_info("The transposed MIDI."),
-    ]
+        # Order must match the values returned by process_fn
+        output_components = [
+            gr.File(
+                type="filepath",
+                label="Output MIDI",
+                file_types=[".mid", ".midi"]
+            ).set_info("The transposed MIDI."),
+        ]
 
-    app = build_endpoint(
-        model_card=model_card,
-        input_components=input_components,
-        output_components=output_components,
-        process_fn=process_fn,
-    )
+        app = build_endpoint(
+            model_card=model_card,
+            input_components=input_components,
+            output_components=output_components,
+            process_fn=process_fn,
+        )
 
-demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True)

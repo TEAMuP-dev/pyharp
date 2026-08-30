@@ -22,5 +22,9 @@ setup(
         # synthesis. Verified working on 0.5.9 against both numpy 1.26 and 2.5;
         # unpin once it is fixed upstream.
         'symusic>=0.5.7,<0.6'
-    ]
+    ],
+    extras_require={
+        # Run with "pytest tests" from the repository root
+        'test': ['pytest']
+    }
 )

@@ -49,38 +49,40 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
     return output_audio_path
 
 
-# Build the Gradio endpoint
-with gr.Blocks() as demo:
-    # Audio and MIDI components become tracks in HARP; everything else
-    # becomes a GUI control. Order must match the process_fn signature.
-    input_components = [
-        gr.Audio(
-            type="filepath",
-            label="Input Audio"
-        ).harp_required(True),
-        gr.Slider(
-            minimum=-24,
-            maximum=24,
-            step=1,
-            value=7,
-            label="Pitch Shift (semitones)",
-            info="Amount to shift the pitch by."
-        ),
-    ]
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # Audio and MIDI components become tracks in HARP; everything else
+        # becomes a GUI control. Order must match the process_fn signature.
+        input_components = [
+            gr.Audio(
+                type="filepath",
+                label="Input Audio"
+            ).harp_required(True),
+            gr.Slider(
+                minimum=-24,
+                maximum=24,
+                step=1,
+                value=7,
+                label="Pitch Shift (semitones)",
+                info="Amount to shift the pitch by."
+            ),
+        ]
 
-    # Order must match the values returned by process_fn
-    output_components = [
-        gr.Audio(
-            type="filepath",
-            label="Output Audio"
-        ).set_info("The pitch-shifted audio."),
-    ]
+        # Order must match the values returned by process_fn
+        output_components = [
+            gr.Audio(
+                type="filepath",
+                label="Output Audio"
+            ).set_info("The pitch-shifted audio."),
+        ]
 
-    app = build_endpoint(
-        model_card=model_card,
-        input_components=input_components,
-        output_components=output_components,
-        process_fn=process_fn,
-    )
+        app = build_endpoint(
+            model_card=model_card,
+            input_components=input_components,
+            output_components=output_components,
+            process_fn=process_fn,
+        )
 
-demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True)

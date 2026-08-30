@@ -2,7 +2,10 @@ from gradio.components.base import Component
 from dataclasses import dataclass, asdict
 from typing import List, Union
 
+import inspect
 import gradio as gr
+
+from .worker import JobSupervisor
 
 
 __all__ = [
@@ -192,7 +195,7 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     return harp_cmp
 
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
-                   process_fn: callable, show_controls: bool = False) -> tuple:
+                   process_fn: callable, show_controls: bool = False, timeout_s: int = 900) -> tuple:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -214,6 +217,18 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             - The function must accept the inputs in the same order as the inputs list.
             - The function must return the outputs in the same order as the outputs list,
               with a filepath string pointing to each output file.
+            - process_fn runs in a worker process, so its arguments and return
+              values must be picklable (e.g. filepath strings, numbers, booleans,
+              JSON-serializable data), and it must be reachable by import: defined
+              at the top level of the app file, not as a lambda, closure, or inside
+              a __main__ guard.
+            - gr.Progress, gr.Info, gr.Warning and gr.Error are forwarded out of
+              the worker and replayed here, so they behave as usual.
+            - The worker is reused between requests, so anything loaded when the
+              module is imported is loaded once rather than per job.
+            - If the Cancel button is pressed, or if process_fn runs longer than
+              timeout_s, the job is interrupted. A job that will not yield to an
+              interrupt has its worker replaced instead.
         show_controls (bool): Whether to show the "View Controls" button and the JSON box
             holding the control data.
             - These exist only so that HARP can read the model's interface, and mean
@@ -222,6 +237,9 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
               to someone running the model from the Gradio page directly.
             - HARP is unaffected either way, since it calls the endpoints rather than
               clicking the buttons.
+        timeout_s (int): Maximum time in seconds to let process_fn run before the
+            job is stopped. Defaults to 900 (15 minutes). Increase this for models
+            that need more time to process their inputs.
 
     Returns:
         app (dict): A dictionary containing:
@@ -256,10 +274,37 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         api_name="controls"
     )
 
+    # Runs process_fn somewhere it can be stopped once it has started
+    supervisor = JobSupervisor(timeout_s=timeout_s)
+
+    def supervised_process(*args):
+        *inputs, progress = args
+
+        return supervisor.run(process_fn, *inputs, progress=progress)
+
+    # Gradio injects a progress tracker bound to the current request into any handler
+    # that declares one, and finds it by scanning leading positional parameters. It
+    # stops at the first *args, so the parameters have to be advertised explicitly.
+    # The tracker arrives last, after one value per input component.
+    supervised_process.__signature__ = inspect.Signature(
+        [
+            inspect.Parameter(f"input_{i}", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            for i in range(len(input_components))
+        ]
+        + [
+            inspect.Parameter(
+                "progress", inspect.Parameter.POSITIONAL_OR_KEYWORD, default=gr.Progress()
+            )
+        ]
+    )
+
+    def cancel_handler():
+        supervisor.cancel()
+
     # Create a button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
-        fn=process_fn,
+        fn=supervised_process,
         inputs=input_components,
         outputs=output_components,
         api_name="process"
@@ -268,7 +313,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     # Create a button to cancel processing
     cancel_button = gr.Button("Cancel")
     cancel_button.click(
-        fn=lambda: None,
+        fn=cancel_handler,
         inputs=[],
         outputs=[],
         api_name="cancel",
