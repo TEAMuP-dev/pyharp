@@ -140,6 +140,14 @@ if __name__ == "__main__":
 An app without one still works, as PyHARP will suppress the second `launch()` with a warning.
 However, in this case the interface is rebuilt in each worker, so the guard is worth adding.
 
+The behaviour above is covered by a test suite, which is worth running after any change
+to `pyharp/worker.py`:
+
+```bash
+pip install -e ".[test]"
+pytest tests
+```
+
 A few smaller notes:
 - Arguments and return values are sent between processes, so they must be picklable. Filepath strings,
   numbers, booleans and other plain data are fine. An open file handle or a live model object is not.
