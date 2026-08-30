@@ -13,7 +13,7 @@ setup(
         # versions discard the error payload on the /gradio_api/call endpoint and
         # send a bare "data: null", which HARP cannot tell apart from a GPU quota
         # rejection (see TEAMuP-dev/HARP#349).
-        'gradio>=6.17.3,<7',
+        'gradio>=6.13.0,<7',
         'descript-audiotools',
         # symusic 0.6.0 broke Synthesizer.render(): it raises "Unable to convert
         # function return value to a Python type" for its Eigen array return,

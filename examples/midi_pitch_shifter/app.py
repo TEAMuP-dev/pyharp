@@ -42,6 +42,7 @@ def process_fn(input_midi_path: str, pitch_shift_amount: int) -> str:
     return output_midi_path
 
 
+# The processing worker imports this file, so the app must not be built there
 if __name__ == "__main__":
     # Build the Gradio endpoint
     with gr.Blocks() as demo:

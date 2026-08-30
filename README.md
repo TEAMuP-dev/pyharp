@@ -8,6 +8,7 @@ PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP)
 * **[PyHARP Apps](#pyharp-apps)**
     * **[Model Card](#model-card)**
     * **[Processing Code](#processing-code)**
+        * **[Worker Processes](#worker-processes)**
     * **[Pre-Trained Models](#pre-trained-models)**
     * **[Gradio Endpoint](#gradio-endpoint)**
         * **[Error Reporting](#error-reporting)**
@@ -109,9 +110,50 @@ and returns:
 
 Note that by default PyHARP uses the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)) to load and save audio, but any standard method will work.
 
+### Worker Processes
+
+`process_fn` runs in a separate worker process, so that pressing Cancel in HARP stops the work rather
+than leaving it to run to completion server-side. `build_endpoint` also takes `timeout_s` (default
+`900`, _i.e._ 15 minutes), after which a job is stopped the same way. Increase it for models that
+legitimately run longer. One job runs at a time and starting a new one stops whatever was running.
+
+The worker is **reused between requests**, so whatever your `app.py` loads on the way to `process_fn`
+is loaded once rather than once per job. Cancelling interrupts the job where it stands and keeps the
+worker, models included. Only a job stuck inside a library call that refuses to be interrupted costs a
+restart, and a replacement worker starts loading immediately, so it is usually ready again before the
+next request.
+
+Being a separate process, the worker has to import your `app.py` to reach `process_fn`, and running
+that file executes everything outside of a `__main__` guard, `launch()` included. The Gradio code
+therefore belongs behind one, with `process_fn` defined above it, as every [example](#examples) does:
+
+```python
+def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
+    ...
+
+if __name__ == "__main__":
+    with gr.Blocks() as demo:
+        ...
+    demo.queue().launch()
+```
+
+An app without one still works, as PyHARP will suppress the second `launch()` with a warning.
+However, in this case the interface is rebuilt in each worker, so the guard is worth adding.
+
+A few smaller notes:
+- Arguments and return values are sent between processes, so they must be picklable. Filepath strings,
+  numbers, booleans and other plain data are fine. An open file handle or a live model object is not.
+- `process_fn` must be reachable by import: defined at the top level of `app.py`, not as a `lambda`,
+  a closure, or inside the guard.
+- `gr.Progress`, `gr.Info` and `gr.Warning` are carried back out of the worker, so they display just
+  as they would otherwise. The one exception is `gr.Progress().tqdm(...)`, which is not forwarded;
+  call `progress(...)` directly instead.
+- Anything read from the request itself, such as a `gr.Request` parameter, is not available inside
+  `process_fn`.
+
 ## Pre-Trained Models
 If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
-- Load the model outside of `process_fn` so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)).
+- Load the model outside of `process_fn`, at the top level of `app.py`, so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)). Note that this happens once per worker process rather than once per app, and that a worker is replaced if a job has to be killed to cancel it ([see above](#worker-processes)).
 - Store model weights within your app repository. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
 
 ## Gradio Endpoint
@@ -126,41 +168,43 @@ from pyharp import build_endpoint
 import gradio as gr
 
 
-# Build the Gradio endpoint
-with gr.Blocks() as demo:
-    # Audio and MIDI components become tracks in HARP; everything else
-    # becomes a GUI control. Order must match the process_fn signature.
-    input_components = [
-        gr.Audio(
-            type="filepath",
-            label="Input Audio"
-        ).harp_required(True),
-        gr.Slider(
-            minimum=-24,
-            maximum=24,
-            step=1,
-            value=7,
-            label="Pitch Shift (semitones)",
-            info="Amount to shift the pitch by."
-        ),
-    ]
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # Audio and MIDI components become tracks in HARP; everything else
+        # becomes a GUI control. Order must match the process_fn signature.
+        input_components = [
+            gr.Audio(
+                type="filepath",
+                label="Input Audio"
+            ).harp_required(True),
+            gr.Slider(
+                minimum=-24,
+                maximum=24,
+                step=1,
+                value=7,
+                label="Pitch Shift (semitones)",
+                info="Amount to shift the pitch by."
+            ),
+        ]
 
-    # Order must match the values returned by process_fn
-    output_components = [
-        gr.Audio(
-            type="filepath",
-            label="Output Audio"
-        ).set_info("The pitch-shifted audio."),
-    ]
+        # Order must match the values returned by process_fn
+        output_components = [
+            gr.Audio(
+                type="filepath",
+                label="Output Audio"
+            ).set_info("The pitch-shifted audio."),
+        ]
 
-    app = build_endpoint(
-        model_card=model_card,
-        input_components=input_components,
-        output_components=output_components,
-        process_fn=process_fn,
-    )
+        app = build_endpoint(
+            model_card=model_card,
+            input_components=input_components,
+            output_components=output_components,
+            process_fn=process_fn,
+        )
 
-demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True)
 ```
 
 A few requirements are easy to miss:
@@ -203,30 +247,32 @@ def process_fn(input_midi_path, ...):
     return output_midi_path
 
 
-# Build the Gradio endpoint
-with gr.Blocks() as demo:
-    # A gr.File restricted to MIDI extensions becomes a MIDI track in HARP.
-    # Order must match the process_fn signature.
-    input_components = [
-        gr.File(
-            type="filepath",
-            label="Input MIDI",
-            file_types=[".mid", ".midi"]
-        ).harp_required(True),
-        ...
-    ]
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # A gr.File restricted to MIDI extensions becomes a MIDI track in HARP.
+        # Order must match the process_fn signature.
+        input_components = [
+            gr.File(
+                type="filepath",
+                label="Input MIDI",
+                file_types=[".mid", ".midi"]
+            ).harp_required(True),
+            ...
+        ]
 
-    # Order must match the values returned by process_fn
-    output_components = [
-        gr.File(
-            type="filepath",
-            label="Output MIDI",
-            file_types=[".mid", ".midi"]
-        ).set_info("The transposed MIDI."),
-        ...
-    ]
+        # Order must match the values returned by process_fn
+        output_components = [
+            gr.File(
+                type="filepath",
+                label="Output MIDI",
+                file_types=[".mid", ".midi"]
+            ).set_info("The transposed MIDI."),
+            ...
+        ]
 
-    ...
+        ...
 ```
 
 Note that by default PyHARP uses the [symusic](https://github.com/Yikai-Liao/symusic) package to load and save MIDI, but any standard method will work.
@@ -273,16 +319,19 @@ def process_fn(...):
 
     return ..., output_labels
 
-with gr.Blocks() as demo:
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
 
-    ...
+        ...
 
-    output_components = [
-        ...,
-        gr.JSON(label="Output Labels")
-    ]
+        output_components = [
+            ...,
+            gr.JSON(label="Output Labels")
+        ]
 
-    ...
+        ...
 ```
 
 GUI elements corresponding to these labels will appear on the respective output tracks after processing in HARP.
@@ -366,6 +415,10 @@ Some models were written against older versions of Python and cannot run alongsi
 Rather than patching the model's source, keep the two apart: a **frontend** environment running Gradio and PyHARP, and a **backend** environment on the older Python running the model. The frontend invokes the backend as a subprocess and the two exchange JSON. Both live in a single Docker image, which a Gradio Space cannot express, hence a Docker Space. Note that ZeroGPU is not available for Docker Spaces, so GPU resources must be paid for with this option.
 
 Our [BeatNet Space](https://huggingface.co/spaces/teamup-tech/BeatNet-dual) is a working example of this layout.
+
+Cancellation reaches the backend as well. `process_fn` runs in a [worker process](#worker-processes),
+which leads its own process group, so stopping a job stops whatever it started. Invoke the backend
+with `subprocess.run` as below and it is torn down with the job rather than left running.
 
 1. Create a new [Hugging Face Space](https://huggingface.co/new-space).
 2. Choose Docker as the SDK along with the blank template.
@@ -471,29 +524,32 @@ git push -u origin main
          return output_audio_path
 
 
-     with gr.Blocks() as demo:
-         input_components = [
-             gr.Audio(type="filepath", label="Input Audio").harp_required(True),
-         ]
+     # The processing worker imports this file, so the app must not be built there
+     if __name__ == "__main__":
+         # Build the Gradio endpoint
+         with gr.Blocks() as demo:
+             input_components = [
+                 gr.Audio(type="filepath", label="Input Audio").harp_required(True),
+             ]
 
-         output_components = [
-             gr.Audio(type="filepath", label="Output Audio"),
-         ]
+             output_components = [
+                 gr.Audio(type="filepath", label="Output Audio"),
+             ]
 
-         app = build_endpoint(
-             model_card=model_card,
-             input_components=input_components,
-             output_components=output_components,
-             process_fn=process_fn,
+             app = build_endpoint(
+                 model_card=model_card,
+                 input_components=input_components,
+                 output_components=output_components,
+                 process_fn=process_fn,
+             )
+
+         # The Space routes traffic to $PORT, and the app must bind to all interfaces
+         # so that requests can reach it from outside the container
+         demo.queue().launch(
+             server_name="0.0.0.0",
+             server_port=int(os.environ["PORT"]),
+             show_error=True
          )
-
-     # The Space routes traffic to $PORT, and the app must bind to all interfaces
-     # so that requests can reach it from outside the container
-     demo.queue().launch(
-         server_name="0.0.0.0",
-         server_port=int(os.environ["PORT"]),
-         show_error=True
-     )
      ```
 
    - `Dockerfile`
