@@ -74,6 +74,10 @@ class HarpMidiTrack(HarpFileBasedComponent):
     type: str = "midi_track"
 
 @dataclass
+class HarpTextTrack(HarpFileBasedComponent):
+    type: str = "text_track"
+
+@dataclass
 class HarpFileComponent(HarpFileBasedComponent):
     file_types: List[str]
     type: str = "generic_file"
@@ -119,6 +123,7 @@ MODALITIES = {
     HarpAudioTrack: Modality.AUDIO,
     HarpMidiTrack: Modality.MIDI,
     HarpFileComponent: Modality.FILE,
+    HarpTextTrack: Modality.FILE,
     HarpTextBox: Modality.TEXT,
     HarpJSON: Modality.LABELS
 }
@@ -158,6 +163,21 @@ def is_midi_file(gr_cmp: Component) -> bool:
     return (isinstance(gr_cmp, gr.File) and gr_cmp.file_types is not None
             and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types))
 
+def is_text_file(gr_cmp: Component) -> bool:
+    """
+    Whether a Gradio component is a gr.File accepting text, which HARP treats as a text
+    track rather than a generic file.
+
+    Args:
+        gr_cmp (Component): A Gradio component.
+
+    Returns:
+        is_text (bool): Whether it is a text file.
+    """
+
+    return (isinstance(gr_cmp, gr.File) and gr_cmp.file_types is not None
+            and '.txt' in gr_cmp.file_types)
+
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
     Obtain a HarpComponent object corresponding to a specified Gradio component.
@@ -183,6 +203,8 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         return HarpAudioTrack(**common)
     if is_midi_file(gr_cmp):
         return HarpMidiTrack(**common)
+    if is_text_file(gr_cmp):
+        return HarpTextTrack(**common)
     if isinstance(gr_cmp, gr.File):
         return HarpFileComponent(**common, file_types=gr_cmp.file_types or [])
     if isinstance(gr_cmp, (gr.Slider, gr.Number)):
@@ -387,13 +409,14 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         input_components (list): Gradio input widgets.
             - The order must match the order of the arguments of process_fn, which is
               also the order the Gradio UI shows.
-            - HARP supports gr.Audio, gr.File (MIDI or generic), gr.Slider, gr.Checkbox,
+            - HARP supports gr.Audio, gr.File (MIDI, text, or generic), gr.Slider, gr.Checkbox,
               gr.Number, gr.Dropdown, and gr.Textbox as inputs. A gr.JSON is an output
               only, and is refused here (see check_position).
         output_components (list): Gradio output widgets.
             - The order must match the values process_fn returns, which is also the
               order the Gradio UI shows.
-            - HARP supports gr.Audio, gr.File (MIDI or generic), and gr.JSON as outputs.
+            - HARP supports gr.Audio, gr.File (MIDI, text, or generic), and gr.JSON as
+              outputs.
               A control such as gr.Slider is an input only, and is refused here (see
               check_position).
         process_fn (callable):
