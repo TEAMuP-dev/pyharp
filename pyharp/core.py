@@ -33,6 +33,11 @@ class HarpMidiTrack(HarpComponent):
     type: str = "midi_track"
 
 @dataclass
+class HarpTextTrack(HarpComponent):
+    required: bool
+    type: str = "text_track"
+
+@dataclass
 class HarpFileComponent(HarpComponent):
     required: bool
     file_types: List[str]
@@ -133,6 +138,12 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
                 info=gr_cmp.info,
                 required=gr_cmp.is_harp_required
             )
+        elif gr_cmp.file_types is not None and '.txt' in gr_cmp.file_types:
+            harp_cmp = HarpTextTrack(
+                label=gr_cmp.label,
+                info=gr_cmp.info,
+                required=gr_cmp.is_harp_required
+            )
         else:
             harp_cmp = HarpFileComponent(
                 label=gr_cmp.label,
@@ -201,14 +212,14 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         input_components (list): Gradio input widgets.
             - It's crucial that the order of inputs matches the order in the Gradio
               UI to ensure proper alignment when communicating with the HARP client.
-            - Currently, HARP supports gr.Audio, gr.File(file_types=[".mid", ".midi"]),
-              gr.Slider, gr.Checkbox, gr.Number, gr.Dropdown, and gr.Textbox widgets as
-              inputs.
+            - Currently, HARP supports gr.Audio, gr.File, gr.File(file_types=[".mid", ".midi"]),
+              gr.File(file_types=[".txt"]), gr.Slider, gr.Checkbox, gr.Number, gr.Dropdown,
+              and gr.Textbox widgets as inputs.
         output_components (list): Gradio output widgets.
             - It's crucial that the order of outputs matches the order in the Gradio
               UI to ensure proper alignment when communicating with the HARP client.
-            - Currently, HARP supports gr.Audio, gr.File(file_types=[".mid", ".midi"]),
-              and gr.JSON widgets as outputs.
+            - Currently, HARP supports gr.Audio, gr.File, gr.File(file_types=[".mid", ".midi"]),
+              gr.File(file_types=[".txt"]), and gr.JSON widgets as outputs.
         process_fn (callable):
             - Function processing the inputs to generate the output.
             - The function must accept the inputs in the same order as the inputs list.
