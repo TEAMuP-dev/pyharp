@@ -7,6 +7,7 @@ PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP)
     * **[Installing](#installing)**
 * **[PyHARP Apps](#pyharp-apps)**
     * **[Model Card](#model-card)**
+        * **[Tags](#tags)**
     * **[Processing Code](#processing-code)**
     * **[Pre-Trained Models](#pre-trained-models)**
     * **[Gradio Endpoint](#gradio-endpoint)**
@@ -19,6 +20,7 @@ PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP)
     * **[Docker Spaces](#docker-spaces)**
     * **[Self-Hosted Endpoints](#self-hosted-endpoints)**
     * **[Accessing Within HARP](#accessing-within-harp)**
+        * **[Listing on the Home Tab](#listing-on-the-home-tab)**
 
 # Usage
 ## Installing
@@ -40,21 +42,56 @@ Note that PyHARP depends on [Gradio](https://www.gradio.app/). We recommend inst
 A PyHARP app is a `ModelCard` describing the model, a `process_fn` doing the work, and a `gr.Blocks` block wiring the two together through `build_endpoint`. The sections below cover each piece in turn, and [Examples](#examples) puts them together into complete, runnable apps.
 
 ## Model Card
-The model card defines various attributes of a PyHARP app to help users understand its intended usage. This information is extracted and displayed when the model is loaded within HARP.
+The model card defines various attributes of a PyHARP app to help users understand its intended usage. HARP reads it when the model is loaded, showing the description in the model's tab and using the tags to categorize it.
 
 The following model card corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
-from pyharp import ModelCard
+from pyharp import ModelCard, Category
 
 
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="Pitch Shifter",
-    description="A pitch shifting example for HARP v3.",
     author="TEAMuP",
-    tags=["example", "audio", "pitch shift", "v3"],
+    description="A pitch shifting example for HARP v3.",
+    tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 ```
+
+### Tags
+HARP's Home tab lists models by category and makes them searchable. It categorizes each model by the `tags` of its model card, which can mix the following:
+
+- **`Category` or `Subcategory`**, _e.g._, `Subcategory.STEM_SEPARATION`: where the model sits in the taxonomy below. List the most specific entries that apply (a `Subcategory` implies its `Category`), and several if the model spans several tasks.
+- **`SampleRate`**, _e.g._, `SampleRate(44100)`: the model's sample rate.
+- **`Channels`**, _e.g._, `Channels(2)`: the model's number of audio channels, tagged as `mono`, `stereo`, or the count itself (_e.g._, `channels:6`).
+- **A string**, _e.g._, `"example"`: a custom tag, such as the model family or a notable feature.
+
+The taxonomy is defined in [`taxonomy.json`](pyharp/taxonomy.json), shared by HARP. Its categories are listed below, each followed by its subcategories, which are written `Subcategory.<NAME>` (_e.g._, `Subcategory.HOLISTIC`):
+
+- **Generation** (`Category.GENERATION`): `HOLISTIC`, `INFILLING`, `CONTINUATION`, `ACCOMPANIMENT`, `EDITING`
+- **Synthesis** (`Category.SYNTHESIS`): `PERFORMANCE_RENDERING`, `INSTRUMENT_SYNTHESIS`, `SINGING_VOICE_SYNTHESIS`, `TEXT_TO_SPEECH`
+- **Effects** (`Category.EFFECTS`): `NEURAL_ANALOG_EFFECTS`, `TIMBRE_TRANSFER`, `EFFECT_REMOVAL`
+- **Enhancement** (`Category.ENHANCEMENT`): `DENOISING`, `DEREVERBERATION`, `BANDWIDTH_EXTENSION`, `RESTORATION`
+- **Production** (`Category.PRODUCTION`): `AUTOMATIC_MIXING`, `MIXING_STYLE_TRANSFER`, `POST_PROCESSING`
+- **Separation** (`Category.SEPARATION`): `STEM_SEPARATION`, `TARGET_SOURCE_EXTRACTION`
+- **Analysis** (`Category.ANALYSIS`): `MUSIC_ANALYSIS`, `SPEECH_ANALYSIS`, `GENERAL_AUDIO_ANALYSIS`
+- **Utility** (`Category.UTILITY`): no subcategories. Marks a tool rather than an AI model, _e.g._, a DSP effect or a test app.
+
+Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as one `input:` or `output:` tag per kind of data: `audio`, `midi`, `file` (a generic file), `text`, or `labels`.
+
+A component's restricted formats follow its tag after a `/`, separated by `|`, _e.g._, `output:audio/wav` or `input:file/json|txt`:
+
+- **`gr.Audio` output**: its `format` (`"wav"` or `"mp3"`), to which Gradio converts the returned audio.
+- **Generic `gr.File` input**: its `file_types` (_e.g._, `[".nam"]`). Gradio rejects any other file.
+- **Generic `gr.File` output**: its `file_types` (_e.g._, `[".json", ".txt"]`). pyharp raises an error if `process_fn` returns any other file.
+
+Other components are tagged without a format. A `gr.Audio` input accepts any audio, since its `format` only sets what Gradio converts it to before `process_fn` receives it, and MIDI needs no format beyond `input:midi` or `output:midi`.
+
+A model's sample rate and channels cannot be inferred, as Gradio components do not declare them, so `SampleRate` and `Channels` are listed by hand, if at all.
+
+HARP reads every tag as a string (_e.g._, `category:effects`, `sample-rate:44100`, or `output:audio/wav`). A string in that form is also accepted in the model card in place of the corresponding object, apart from `input:` and `output:`, which are only ever inferred.
+
+A model hosted as a Hugging Face Space can also list these tags in its `README.md`, so that HARP can categorize it before it is loaded (see [Listing on the Home Tab](#listing-on-the-home-tab)).
 
 ## Processing Code
 In PyHARP, arbitrary audio processing code is wrapped within a single function `process_fn` for use with Gradio. The function arguments and return values should match the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) defined under the main Gradio code block ([see below](#gradio-endpoint)).
@@ -114,7 +151,7 @@ If you want to build an endpoint that utilizes a pre-trained model, we recommend
 - Store model weights within your app repository. The Hub keeps large files out of Git itself, through [Xet](https://huggingface.co/docs/hub/xet/index) on repositories created since May 2025 and [Git LFS](https://git-lfs.com/) on older ones. A Space is initialized with a `.gitattributes` that already routes common weight extensions, so a plain `git add` is enough. Keep those patterns specific (_e.g._ `*.safetensors`) so that smaller files are not sent through large-file storage.
 
 ## Gradio Endpoint
-The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls.
+The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a generic `gr.File` adds `input:file` or `output:file`, and a `gr.Textbox` adds `input:text`.
 
 The Gradio page also carries HARP's own widgets. The "View Controls" button and the JSON box of control data exist only so that HARP can read the model's interface, so they are hidden by default. Pass `show_controls=True` to `build_endpoint` if you want to inspect them. The "Process" and "Cancel" buttons are always shown, since they are useful to someone running the model from the page directly. HARP is unaffected either way, since it calls the endpoints rather than clicking the buttons.
 
@@ -146,8 +183,10 @@ with gr.Blocks() as demo:
 
     # Order must match the values returned by process_fn
     output_components = [
+        # Gradio converts the output to this format, which pyharp adds to the model's tags
         gr.Audio(
             type="filepath",
+            format="wav",
             label="Output Audio"
         ).set_info("The pitch-shifted audio."),
     ]
@@ -183,7 +222,7 @@ if signal.sample_rate != 44100:
 Note that `gr.Info` and `gr.Warning` never reach HARP. Gradio does not forward them on the endpoint HARP uses, so they appear only on the Gradio page.
 
 ## MIDI Inputs & Outputs
-PyHARP supports MIDI inputs and outputs through Gradio's [File](https://www.gradio.app/docs/gradio/file) component. As with `gr.Audio`, each `gr.File` representing MIDI must set `type="filepath"`, and must also specify `file_types=[".mid", ".midi"]` so that HARP renders it as a MIDI track rather than a generic file picker.
+PyHARP supports MIDI inputs and outputs through Gradio's [File](https://www.gradio.app/docs/gradio/file) component. As with `gr.Audio`, each `gr.File` representing MIDI must set `type="filepath"`, and must also specify `file_types=[".mid", ".midi"]` so that HARP renders it as a MIDI track rather than a generic file picker. It also tags the model with `input:midi` or `output:midi`.
 
 The following corresponds to our [MIDI pitch shifter](examples/midi_pitch_shifter/app.py) example:
 ```python
@@ -231,7 +270,7 @@ with gr.Blocks() as demo:
 Note that by default PyHARP uses the [symusic](https://github.com/Yikai-Liao/symusic) package to load and save MIDI, but any standard method will work.
 
 ## Output Labels
-In order to display output labels in HARP, you must define an output [JSON](https://www.gradio.app/docs/gradio/json) component and return our custom `LabelList` object in `process_fn`:
+In order to display output labels in HARP (which also tags the model with `output:labels`), you must define an output [JSON](https://www.gradio.app/docs/gradio/json) component and return our custom `LabelList` object in `process_fn`:
 ```python
 from pyharp import LabelList, AudioLabel, MidiLabel, OutputLabel, ...
 
@@ -347,6 +386,8 @@ git push -u origin main
 
      Set __sdk_version__ to __6.24.0__, the recommended version of `gradio`. This is what the Space actually deploys with, so it must be set even though `gradio` is not listed in `requirements.txt`. Note that Gradio `4.x` and earlier are incompatible with HARP, and that versions before `6.13.0` cannot report error messages (see [Installing](#installing)).
 
+     Optionally, add a __short_description__ and the model card's __tags__, which HARP can show before the model is loaded (see [Listing on the Home Tab](#listing-on-the-home-tab)).
+
    - `requirements.txt`
 
      Place all of the required **pip** packages in this file. It should also include the latest version of `pyharp`:
@@ -382,7 +423,7 @@ git push -u origin main
 6. Configure the following repository files:
    - `README.md`
 
-     Set **app_port** to any valid `<PORT>`.
+     Set **app_port** to any valid `<PORT>`. As with a Gradio Space, a **short_description** and the model card's **tags** can optionally be added (see [Listing on the Home Tab](#listing-on-the-home-tab)).
 
    - `requirements-frontend.txt`
 
@@ -433,8 +474,8 @@ git push -u origin main
      # Metadata shown in HARP's model info panel
      model_card = ModelCard(
          name="Legacy Model",
-         description="An example model which runs under an older version of Python.",
          author="TEAMuP",
+         description="An example model which runs under an older version of Python.",
          tags=["example", "docker", "dual environment"],
      )
 
@@ -604,3 +645,23 @@ However a PyHARP app is hosted, it can be loaded in HARP as a custom path:
 - **Running locally**, use the local or forwarded URL printed on startup ([see above](#examples)), _e.g._ `http://localhost:7860` or `https://<RANDOM_ID>.gradio.live/`.
 - **Hosted on a Space**, use `https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>`, or just the shorthand `<USERNAME>/<SPACE_NAME>`. The Gradio and Docker Space options produce identical UIs and functionality.
 - **Self-hosted behind an SSH tunnel**, use the forwarded address ([see above](#self-hosted-endpoints)), _e.g._ `http://localhost:7860`.
+
+### Listing on the Home Tab
+HARP's Home tab lists every Space of the [TEAMuP organization](https://huggingface.co/teamup-tech) on Hugging Face, so a PyHARP app hosted there appears without being entered as a custom path. HARP reads a model's card only once it is loaded, since reaching the app requires waking a sleeping Space. Until then, it describes and categorizes the model using two fields of the Space's `README.md` metadata, which Hugging Face also shows on the Space's own page:
+
+- `short_description`: a summary of the model card's `description`, shortened if needed to Hugging Face's limit of 60 characters.
+- `tags`: the model card's tags, including the `input:` and `output:` tags inferred from its Gradio components (see [Tags](#tags)). Their order does not matter. To see the exact list, launch the app with `build_endpoint(..., show_controls=True)` and click "View Controls", which shows it under `card`.
+
+For our [pitch shifter](examples/pitch_shifter/README.md) example, these are:
+```yaml
+short_description: A pitch shifting example for HARP v3.
+tags:
+  - category:effects
+  - category:utility
+  - input:audio
+  - output:audio/wav
+  - example
+  - pitch shift
+```
+
+Both fields are optional. A Space without them is still listed, under "Other" and by name alone, and once it is loaded, HARP uses its model card as usual. They are only relevant to Spaces: an app run locally or self-hosted is opened as a custom path, and needs nothing beyond its model card.

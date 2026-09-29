@@ -8,6 +8,8 @@ setup(
     author_email='fcwitkow@ur.rochester.edu',
     description='',
     packages=find_packages(),
+    # Model taxonomy, shared with HARP (see pyharp/tags.py)
+    package_data={'pyharp': ['taxonomy.json']},
     install_requires=[
         # Gradio >= 6.13 is required for HARP to receive error details: earlier
         # versions discard the error payload on the /gradio_api/call endpoint and

@@ -13,9 +13,9 @@ import gradio as gr
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="MIDI Pitch Shifter",
-    description="A MIDI pitch shifting example for HARP v3.",
     author="TEAMuP",
-    tags=["example", "midi", "pitch shift", "v3"],
+    description="A MIDI pitch shifting example for HARP v3.",
+    tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 
 

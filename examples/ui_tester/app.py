@@ -34,6 +34,7 @@ REFERENCE_MIDI_PATH = os.path.join(RESOURCE_DIR, "test.mid")
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="UI Tester",
+    author="TEAMuP",
     description=(
         "Exercises every input control, track type, and output label type "
         "supported by HARP. No real processing is performed: input tracks are "
@@ -41,8 +42,7 @@ model_card = ModelCard(
         "track left empty, so the app can be run without loading anything. "
         "The control values are echoed into the output label descriptions."
     ),
-    author="TEAMuP",
-    tags=["example", "ui", "test", "v3"],
+    tags=[Category.UTILITY, "example", "test"],
 )
 
 

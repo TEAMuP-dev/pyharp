@@ -15,9 +15,9 @@ import torch
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="Pitch Shifter",
-    description="A pitch shifting example for HARP v3.",
     author="TEAMuP",
-    tags=["example", "audio", "pitch shift", "v3"],
+    description="A pitch shifting example for HARP v3.",
+    tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 
 
@@ -70,8 +70,10 @@ with gr.Blocks() as demo:
 
     # Order must match the values returned by process_fn
     output_components = [
+        # Gradio converts the output to this format, which pyharp adds to the model's tags
         gr.Audio(
             type="filepath",
+            format="wav",
             label="Output Audio"
         ).set_info("The pitch-shifted audio."),
     ]

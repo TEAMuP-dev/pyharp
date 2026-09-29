@@ -28,9 +28,16 @@ synthesizer = Synthesizer(
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="MIDI Synthesizer",
-    description="A MIDI synthesizer example for HARP v3.",
     author="TEAMuP",
-    tags=["example", "midi", "synthesizer", "v3"],
+    description="A MIDI synthesizer example for HARP v3.",
+    tags=[
+        Subcategory.INSTRUMENT_SYNTHESIS,
+        Category.UTILITY,
+        SampleRate(SAMPLE_RATE),
+        Channels(2),
+        "example",
+        "soundfont",
+    ],
 )
 
 
@@ -72,6 +79,7 @@ with gr.Blocks() as demo:
     output_components = [
         gr.Audio(
             type="filepath",
+            format="wav",
             label="Output Audio"
         ).set_info("The synthesized audio."),
     ]

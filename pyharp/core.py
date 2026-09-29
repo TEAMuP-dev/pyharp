@@ -1,8 +1,14 @@
 from gradio.components.base import Component
-from dataclasses import dataclass, asdict
-from typing import List, Union
+from gradio_client.utils import is_valid_file
+from dataclasses import dataclass, asdict, field
+from pathlib import Path
+from typing import List, Optional, Union
 
 import gradio as gr
+import functools
+import inspect
+
+from .tags import INPUT_KEY, OUTPUT_KEY, Modality, Tag, build_tags, io_tag
 
 
 __all__ = [
@@ -10,12 +16,32 @@ __all__ = [
     'build_endpoint'
 ]
 
-@dataclass
+@dataclass(kw_only=True)
 class ModelCard:
+    """
+    Model description shown in the model's tab and used to categorize and filter models.
+
+    Args:
+        name (str): Name of the model.
+        author (str): Who made the model.
+        description (str): What the model does.
+        tags (List[Tag]): Any mix of:
+            - Category or Subcategory: where the model sits in the taxonomy. Give the most
+              specific entries that apply, since a subcategory implies its category, and
+              several if the model spans several tasks. Category.UTILITY marks a tool rather
+              than an AI model.
+            - SampleRate or Channels: the model's sample rate or number of audio channels.
+            - A string: a custom tag, e.g. the model family or a notable feature.
+
+    Input and output tags (e.g., audio or MIDI, with any restricted formats) are inferred from
+    the Gradio components by build_endpoint (see get_io_tags), so they are not listed here.
+    """
+
     name: str
-    description: str
     author: str
-    tags: List[str]
+    description: str
+    tags: List[Tag] = field(default_factory=list)
+
 
 @dataclass
 class HarpComponent:
@@ -23,28 +49,37 @@ class HarpComponent:
     info: str
 
 @dataclass
-class HarpAudioTrack(HarpComponent):
+class HarpFileBasedComponent(HarpComponent):
+    # A track or generic file, which can be made optional
     required: bool
-    type: str = "audio_track"
 
 @dataclass
-class HarpMidiTrack(HarpComponent):
-    required: bool
-    type: str = "midi_track"
-
-@dataclass
-class HarpFileComponent(HarpComponent):
-    required: bool
-    file_types: List[str]
-    type: str = "generic_file"
-
-@dataclass
-class HarpSlider(HarpComponent):
+class HarpRangeComponent(HarpComponent):
     minimum: float
     maximum: float
     step: float
     value: float
+
+@dataclass
+class HarpAudioTrack(HarpFileBasedComponent):
+    type: str = "audio_track"
+
+@dataclass
+class HarpMidiTrack(HarpFileBasedComponent):
+    type: str = "midi_track"
+
+@dataclass
+class HarpFileComponent(HarpFileBasedComponent):
+    file_types: List[str]
+    type: str = "generic_file"
+
+@dataclass
+class HarpSlider(HarpRangeComponent):
     type: str = "slider"
+
+@dataclass
+class HarpNumberBox(HarpRangeComponent):
+    type: str = "number_box"
 
 @dataclass
 class HarpTextBox(HarpComponent):
@@ -64,16 +99,17 @@ class HarpDropdown(HarpComponent):
     type: str = "dropdown"
 
 @dataclass
-class HarpNumberBox(HarpComponent):
-    minimum: float
-    maximum: float
-    step: float
-    value: float
-    type: str = "number_box"
-
-@dataclass
 class HarpJSON(HarpComponent):
     type: str = "json"
+
+# Kind of data each component carries (controls such as sliders carry none)
+MODALITIES = {
+    HarpAudioTrack: Modality.AUDIO,
+    HarpMidiTrack: Modality.MIDI,
+    HarpFileComponent: Modality.FILE,
+    HarpTextBox: Modality.TEXT,
+    HarpJSON: Modality.LABELS
+}
 
 def extend_gradio():
     """
@@ -101,6 +137,15 @@ def extend_gradio():
     Component.set_info = set_info
     Component.info = None
 
+def is_midi_file(gr_cmp: Component) -> bool:
+    """
+    Whether a Gradio component is a gr.File accepting MIDI, which HARP treats as a MIDI track
+    rather than a generic file.
+    """
+
+    return (isinstance(gr_cmp, gr.File) and gr_cmp.file_types is not None
+            and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types))
+
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
     Obtain a HarpComponent object corresponding to a specified Gradio component.
@@ -115,84 +160,174 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         ValueError: If input component is not supported.
     """
 
+    common = {"label": gr_cmp.label, "info": gr_cmp.info}
+
+    if isinstance(gr_cmp, (gr.Audio, gr.File)):
+        assert gr_cmp.type == "filepath", \
+            f"{type(gr_cmp).__name__} components must be of type filepath, not {gr_cmp.type}"
+        common["required"] = gr_cmp.is_harp_required
+
     if isinstance(gr_cmp, gr.Audio):
-        assert gr_cmp.type == "filepath", \
-            f"Audio input must be of type filepath, not {gr_cmp.type}"
-        harp_cmp = HarpAudioTrack(
-            label=gr_cmp.label,
-            info=gr_cmp.info,
-            required=gr_cmp.is_harp_required
-        )
-    elif isinstance(gr_cmp, gr.File):
-        assert gr_cmp.type == "filepath", \
-            f"File input must be of type filepath, not {gr_cmp.type}"
+        return HarpAudioTrack(**common)
+    if is_midi_file(gr_cmp):
+        return HarpMidiTrack(**common)
+    if isinstance(gr_cmp, gr.File):
+        return HarpFileComponent(**common, file_types=gr_cmp.file_types or [])
+    if isinstance(gr_cmp, (gr.Slider, gr.Number)):
+        range_cls = HarpSlider if isinstance(gr_cmp, gr.Slider) else HarpNumberBox
+        return range_cls(**common, minimum=gr_cmp.minimum, maximum=gr_cmp.maximum,
+                         step=gr_cmp.step, value=gr_cmp.value)
+    if isinstance(gr_cmp, gr.Textbox):
+        return HarpTextBox(**common, value=gr_cmp.value)
+    if isinstance(gr_cmp, gr.Checkbox):
+        return HarpToggle(**common, value=gr_cmp.value)
+    if isinstance(gr_cmp, gr.Dropdown):
+        return HarpDropdown(**common, choices=gr_cmp.choices, value=gr_cmp.value,
+                            multiselect=bool(gr_cmp.multiselect))
+    if isinstance(gr_cmp, gr.JSON):
+        return HarpJSON(**common)
 
-        if gr_cmp.file_types is not None and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types):
-            harp_cmp = HarpMidiTrack(
-                label=gr_cmp.label,
-                info=gr_cmp.info,
-                required=gr_cmp.is_harp_required
-            )
-        else:
-            harp_cmp = HarpFileComponent(
-                label=gr_cmp.label,
-                info=gr_cmp.info,
-                required=gr_cmp.is_harp_required,
-                file_types=gr_cmp.file_types if gr_cmp.file_types is not None else []
-            )
-    elif isinstance(gr_cmp, gr.Slider):
-        harp_cmp = HarpSlider(
-            minimum=gr_cmp.minimum,
-            maximum=gr_cmp.maximum,
-            label=gr_cmp.label,
-            value=gr_cmp.value,
-            step=gr_cmp.step,
-            info=gr_cmp.info
-        )
-    elif isinstance(gr_cmp, gr.Textbox):
-        harp_cmp = HarpTextBox(
-            label=gr_cmp.label,
-            value=gr_cmp.value,
-            info=gr_cmp.info
-        )
-    elif isinstance(gr_cmp, gr.Checkbox):
-        harp_cmp = HarpToggle(
-            label=gr_cmp.label,
-            value=gr_cmp.value,
-            info=gr_cmp.info
-        )
-    elif isinstance(gr_cmp, gr.Dropdown):
-        harp_cmp = HarpDropdown(
-            label=gr_cmp.label,
-            choices=gr_cmp.choices,
-            value=gr_cmp.value,
-            info=gr_cmp.info,
-            multiselect=bool(gr_cmp.multiselect)
-        )
-    elif isinstance(gr_cmp, gr.JSON):
-        harp_cmp = HarpJSON(
-            label=gr_cmp.label,
-            info=gr_cmp.info
-            #value=gr_cmp.value,
-        )
-    elif isinstance(gr_cmp, gr.Number):
-        harp_cmp = HarpNumberBox(
-            label=gr_cmp.label,
-            value=gr_cmp.value,
-            minimum=gr_cmp.minimum,
-            maximum=gr_cmp.maximum,
-            step=gr_cmp.step,
-            info=gr_cmp.info
-        )
+    raise ValueError(
+        f"HARP does not support provided \'{gr_cmp}\' component. Please remove it or use an alternative."
+    )
+
+def get_modality(harp_cmp: HarpComponent) -> Optional[Modality]:
+    """
+    Obtain the kind of data a HarpComponent carries, if it carries any.
+
+    Args:
+        harp_cmp (HarpComponent): An input or output component.
+
+    Returns:
+        modality (Modality | None): Its modality, or None for a control such as a slider.
+    """
+
+    return MODALITIES.get(type(harp_cmp))
+
+
+def get_declared_formats(gr_cmp: Component, is_output: bool) -> List[str]:
+    """
+    Obtain the file formats to which a component restricts its data, if any.
+
+    A generic gr.File is restricted to its file_types, which Gradio enforces for an input and
+    pyharp enforces for an output (see enforce_output_file_types). A gr.Audio output is
+    restricted to its format, to which Gradio converts the returned audio. A gr.Audio input
+    is not restricted, since its format only sets how Gradio converts incoming audio. A MIDI
+    file is not described by format.
+
+    Args:
+        gr_cmp (Component): A Gradio input or output component.
+        is_output (bool): Whether it is an output.
+
+    Returns:
+        formats (List[str]): File extensions, or an empty list if it is not restricted.
+    """
+
+    if isinstance(gr_cmp, gr.Audio):
+        return [gr_cmp.format] if is_output and gr_cmp.format else []
+
+    if isinstance(gr_cmp, gr.File) and not is_midi_file(gr_cmp):
+        # File types can also be categories such as "audio", which name no single format
+        return [t for t in (gr_cmp.file_types or []) if t.startswith(".")]
+
+    return []
+
+
+def get_io_tags(key: str, gr_cmps: list, harp_cmps: List[HarpComponent]) -> List[str]:
+    """
+    Obtain the tags describing a model's inputs or outputs, in order of appearance.
+
+    Args:
+        key (str): INPUT_KEY or OUTPUT_KEY.
+        gr_cmps (list): The Gradio components.
+        harp_cmps (List[HarpComponent]): The corresponding HarpComponents.
+
+    Returns:
+        tags (List[str]): One tag per input or output, without duplicates (see
+            pyharp.tags.io_tag). Controls such as sliders are not tagged.
+    """
+
+    tags = []
+
+    for gr_cmp, harp_cmp in zip(gr_cmps, harp_cmps):
+        modality = get_modality(harp_cmp)
+
+        if modality is not None:
+            tags.append(io_tag(key, modality, get_declared_formats(gr_cmp, key == OUTPUT_KEY)))
+
+    return list(dict.fromkeys(tags))
+
+
+def check_output_files(values, output_components: list):
+    """
+    Check the files returned for gr.File outputs against their file_types.
+
+    Args:
+        values: What process_fn returned.
+        output_components (list): Gradio output components.
+
+    Raises:
+        gr.Error: If a returned file is not one of its output's file_types.
+    """
+
+    values = [values] if len(output_components) == 1 else list(values)
+
+    for index, (gr_cmp, value) in enumerate(zip(output_components, values)):
+        if not isinstance(gr_cmp, gr.File) or not gr_cmp.file_types or value is None:
+            continue
+
+        name = f"\"{gr_cmp.label}\"" if gr_cmp.label else f"{index + 1}"
+
+        for path in (value if isinstance(value, (list, tuple)) else [value]):
+            if not is_valid_file(str(path), gr_cmp.file_types):
+                raise gr.Error(
+                    f"Output {name} returned \"{Path(str(path)).name}\", which is not one of "
+                    f"its file types {gr_cmp.file_types}."
+                )
+
+
+def enforce_output_file_types(process_fn: callable, output_components: list) -> callable:
+    """
+    Make process_fn fail if it returns a file its gr.File output does not declare.
+
+    Gradio checks an input's file against its file_types and converts a gr.Audio output to
+    its format, but passes on whatever file is returned for a gr.File output. Checking it here
+    makes the formats HARP is told about (see get_declared_formats) dependable.
+
+    Args:
+        process_fn (callable): The processing function.
+        output_components (list): Gradio output components.
+
+    Returns:
+        process_fn (callable): The function, wrapped with the check where one is needed.
+            The wrapper keeps its signature, which Gradio inspects (e.g., for gr.Progress).
+    """
+
+    if not any(isinstance(c, gr.File) and c.file_types for c in output_components):
+        return process_fn
+
+    if inspect.isgeneratorfunction(process_fn) or inspect.isasyncgenfunction(process_fn):
+        # Outputs are streamed rather than returned, so there is no single result to check
+        return process_fn
+
+    if inspect.iscoroutinefunction(process_fn):
+        @functools.wraps(process_fn)
+        async def checked_process_fn(*args, **kwargs):
+            values = await process_fn(*args, **kwargs)
+            check_output_files(values, output_components)
+            return values
     else:
-        raise ValueError(
-            f"HARP does not support provided \'{gr_cmp}\' component. Please remove it or use an alternative."
-        )
+        @functools.wraps(process_fn)
+        def checked_process_fn(*args, **kwargs):
+            values = process_fn(*args, **kwargs)
+            check_output_files(values, output_components)
+            return values
 
-    return harp_cmp
+    return checked_process_fn
+
 
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
-                   process_fn: callable, show_controls: bool = False) -> tuple:
+                   process_fn: callable, show_controls: bool = False) -> dict:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -201,19 +336,20 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         input_components (list): Gradio input widgets.
             - It's crucial that the order of inputs matches the order in the Gradio
               UI to ensure proper alignment when communicating with the HARP client.
-            - Currently, HARP supports gr.Audio, gr.File(file_types=[".mid", ".midi"]),
-              gr.Slider, gr.Checkbox, gr.Number, gr.Dropdown, and gr.Textbox widgets as
-              inputs.
+            - Currently, HARP supports gr.Audio, gr.File (MIDI or generic), gr.Slider,
+              gr.Checkbox, gr.Number, gr.Dropdown, and gr.Textbox widgets as inputs.
         output_components (list): Gradio output widgets.
             - It's crucial that the order of outputs matches the order in the Gradio
               UI to ensure proper alignment when communicating with the HARP client.
-            - Currently, HARP supports gr.Audio, gr.File(file_types=[".mid", ".midi"]),
-              and gr.JSON widgets as outputs.
+            - Currently, HARP supports gr.Audio, gr.File (MIDI or generic), and gr.JSON
+              widgets as outputs.
         process_fn (callable):
             - Function processing the inputs to generate the output.
             - The function must accept the inputs in the same order as the inputs list.
             - The function must return the outputs in the same order as the outputs list,
               with a filepath string pointing to each output file.
+            - A file returned for a gr.File output with file_types must be one of those
+              types, or processing fails with an error.
         show_controls (bool): Whether to show the "View Controls" button and the JSON box
             holding the control data.
             - These exist only so that HARP can read the model's interface, and mean
@@ -235,14 +371,25 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     harp_inputs = [get_harp_component(gr_cmp) for gr_cmp in input_components]
     harp_outputs = [get_harp_component(gr_cmp) for gr_cmp in output_components]
 
-    # Create a callable returning model card and controls
-    def fetch_model_info():
-        data = {
-            "card": asdict(model_card),
-            "inputs": [asdict(cmp) for cmp in harp_inputs],
-            "outputs": [asdict(cmp) for cmp in harp_outputs]
-        }
-        return data
+    # The card is sent with its tags, and those inferred for its inputs and outputs, flattened
+    # into one list (see pyharp.tags)
+    card = {
+        "name": model_card.name,
+        "author": model_card.author,
+        "description": model_card.description,
+        "tags": build_tags(
+            model_card.tags,
+            inferred=get_io_tags(INPUT_KEY, input_components, harp_inputs)
+                     + get_io_tags(OUTPUT_KEY, output_components, harp_outputs)
+        )
+    }
+
+    # The model card and controls never change, so they are assembled once
+    model_info = {
+        "card": card,
+        "inputs": [asdict(cmp) for cmp in harp_inputs],
+        "outputs": [asdict(cmp) for cmp in harp_outputs]
+    }
 
     # Create a component to store the control data
     controls_data = gr.JSON(label="Controls Data", visible=show_controls)
@@ -250,7 +397,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     # Create a button to fetch model control data
     controls_button = gr.Button("View Controls", visible=show_controls)
     controls_button.click(
-        fn=fetch_model_info,
+        fn=lambda: model_info,
         inputs=[],
         outputs=controls_data,
         api_name="controls"
@@ -259,7 +406,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     # Create a button to begin processing
     process_button = gr.Button("Process")
     process_event = process_button.click(
-        fn=process_fn,
+        fn=enforce_output_file_types(process_fn, output_components),
         inputs=input_components,
         outputs=output_components,
         api_name="process"
@@ -275,14 +422,12 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         cancels=[process_event]
     )
 
-    app = {
+    return {
         "controls_data": controls_data,
         "controls_button": controls_button,
         "process_button": process_button,
         "cancel_button": cancel_button
     }
-
-    return app
 
 
 extend_gradio()
