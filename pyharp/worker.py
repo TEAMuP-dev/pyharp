@@ -62,6 +62,51 @@ if getattr(mp.current_process(), "_inheriting", False):
 
     gr.Blocks.launch = _suppress_launch
 
+
+def _capture_request():
+    """
+    Takes the headers of the request being served, for the worker to restore.
+
+    Gradio exposes the request through a contextvar, which does not cross into the
+    worker. ZeroGPU reads the caller's token from these headers to decide whose GPU
+    quota a job spends, so without them every job on a ZeroGPU Space is scheduled as
+    though nobody were signed in, against the much smaller anonymous allowance.
+
+    Called in the server process, where that context exists.
+    """
+    try:
+        from gradio.context import LocalContext
+
+        request = LocalContext.request.get(None)
+
+        if request is None:
+            return None
+
+        # Plain data, since whatever is returned has to be pickled to the worker.
+        # Both the live and the queued shapes of a request convert directly.
+        return dict(request.headers)
+    except Exception:
+        # A request that cannot be read is not worth failing the job over; the job
+        # runs, and on ZeroGPU it falls back to the anonymous allowance as before
+        return None
+
+
+def _restore_request(headers):
+    """
+    Puts the caller's request back in context, so that the job runs as they asked.
+
+    The counterpart to _capture_request, called in the worker. Set on every job,
+    including to None, so that one caller's headers cannot be left behind for the
+    next.
+    """
+    try:
+        from gradio.context import LocalContext
+
+        LocalContext.request.set(gr.Request(headers=headers) if headers else None)
+    except Exception:
+        pass
+
+
 def _redirect_context_calls(result_q, job_id):
     """
     Points Gradio's progress and message helpers at the result queue.
@@ -133,13 +178,15 @@ def _worker_loop(jobs_q, results_q, job_done):
             # The queue is gone, so no further job can arrive
             return
 
-        job_id, fn, args = job
+        job_id, fn, args, headers = job
         current_id[0] = job_id
 
         try:
             # Set inside the try, so an interrupt landing here is caught below rather
             # than unwinding out of the loop and ending the worker
             running.set()
+
+            _restore_request(headers)
 
             result = fn(*args)
 
@@ -189,6 +236,9 @@ class JobSupervisor:
         self._lock = threading.Lock()
 
     def run(self, fn, *args, progress=None):
+        # Taken before anything else, while the request being served is still in context
+        headers = _capture_request()
+
         # Single-flight: a new request stops whatever was running, rather than queueing
         # behind it, so that Process always starts the job the user just asked for
         self.cancel()
@@ -200,7 +250,7 @@ class JobSupervisor:
             job_id = self._job_id
             self._busy = True
 
-        jobs_q.put((job_id, fn, args))
+        jobs_q.put((job_id, fn, args, headers))
 
         try:
             status, payload = self._collect(worker, results_q, job_done, job_id, progress)

@@ -156,8 +156,11 @@ A few smaller notes:
 - `gr.Progress`, `gr.Info` and `gr.Warning` are carried back out of the worker, so they display just
   as they would otherwise. The one exception is `gr.Progress().tqdm(...)`, which is not forwarded;
   call `progress(...)` directly instead.
-- Anything read from the request itself, such as a `gr.Request` parameter, is not available inside
-  `process_fn`.
+- The headers of the request being served are carried into the worker, so a library that reads them
+  from Gradio's request context still works. ZeroGPU is the one that matters: it takes the caller's
+  token from those headers to decide whose GPU quota a job spends, and without them every job would
+  be scheduled as though nobody were signed in. A `gr.Request` parameter is still not passed to
+  `process_fn`, and nothing else of the request is carried over.
 
 ## Pre-Trained Models
 If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:

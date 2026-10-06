@@ -2,6 +2,7 @@ import os
 import sys
 import threading
 
+import gradio as gr
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,6 +46,29 @@ def collected_messages(monkeypatch):
     monkeypatch.setattr("gradio.helpers.log_message", record)
 
     return messages
+
+
+@pytest.fixture
+def serving_request():
+    """
+    Stands in for the request context Gradio establishes around a handler.
+
+    The request lives in a contextvar, so it is set and reset rather than patched.
+    """
+    from gradio.context import LocalContext
+
+    tokens = []
+
+    def serve(headers):
+        request = gr.Request(headers=headers) if headers is not None else None
+        tokens.append(LocalContext.request.set(request))
+
+        return request
+
+    yield serve
+
+    for token in reversed(tokens):
+        LocalContext.request.reset(token)
 
 
 class RecordingProgress:

@@ -98,6 +98,18 @@ def return_unsendable():
     return Unsendable()
 
 
+def report_request_headers():
+    """Reports the request headers visible in the worker, as ZeroGPU reads them."""
+    from gradio.context import LocalContext
+
+    request = LocalContext.request.get(None)
+
+    if request is None:
+        return None
+
+    return dict(request.headers)
+
+
 def exit_abruptly():
     """Stands in for an out-of-memory kill: the process dies without reporting."""
     os._exit(1)

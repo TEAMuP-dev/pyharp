@@ -250,3 +250,39 @@ def test_overrunning_job_is_stopped_at_the_limit(supervisor, progress):
 
 def test_a_job_within_its_limit_is_left_alone(supervisor, progress):
     assert supervisor(timeout_s=30).run(jobs.sleep_interruptibly, 1, progress=progress)
+
+
+def test_request_headers_reach_the_worker(supervisor, progress, serving_request):
+    """
+    ZeroGPU decides whose GPU quota a job spends from the caller's token, which it
+    reads off these headers. They reach it through a contextvar, which does not
+    survive the jump into the worker unless it is carried there.
+    """
+    headers = {"x-ip-token": "a-caller-token", "x-gradio-user": "app"}
+
+    serving_request(headers)
+
+    assert supervisor().run(jobs.report_request_headers, progress=progress) == headers
+
+
+def test_a_job_without_a_request_sees_none(supervisor, progress):
+    """An app driven outside a request, such as from a script, still runs."""
+    assert supervisor().run(jobs.report_request_headers, progress=progress) is None
+
+
+def test_a_request_does_not_leak_into_the_next_job(supervisor, progress, serving_request):
+    """
+    The worker outlives the job, so a contextvar set for one caller would otherwise
+    still be set for whoever is served next.
+    """
+    instance = supervisor()
+
+    serving_request({"x-ip-token": "first-caller"})
+
+    assert instance.run(jobs.report_request_headers, progress=progress) == {
+        "x-ip-token": "first-caller"
+    }
+
+    serving_request(None)
+
+    assert instance.run(jobs.report_request_headers, progress=progress) is None

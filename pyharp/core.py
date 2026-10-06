@@ -224,6 +224,8 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
               a __main__ guard.
             - gr.Progress, gr.Info, gr.Warning and gr.Error are forwarded out of
               the worker and replayed here, so they behave as usual.
+            - The request's headers are carried into the worker, so that ZeroGPU
+              still bills the GPU quota of whoever made the request.
             - The worker is reused between requests, so anything loaded when the
               module is imported is loaded once rather than per job.
             - If the Cancel button is pressed, or if process_fn runs longer than
