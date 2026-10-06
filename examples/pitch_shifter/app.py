@@ -7,6 +7,8 @@ input track, one slider control, and one audio output track.
 
 from pyharp import *
 
+from pathlib import Path
+
 import gradio as gr
 import torchaudio
 import torch
@@ -44,7 +46,14 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
     )
     signal.audio_data = pitch_shift(signal.audio_data)
 
-    output_audio_path = str(save_audio(signal))
+    # Returned in the container it arrived in, unless that container is lossy.
+    # Such a file was encoded once already, and the shift moves that encoder's
+    # artifacts out from under the maskers that hid them, so writing .mp3 back
+    # would layer a second round of loss over a first that is now audible.
+    input_ext = Path(input_audio_path).suffix.lower()
+    output_ext = input_ext if input_ext in {".wav", ".aiff", ".flac"} else ".wav"
+
+    output_audio_path = str(save_audio(signal, get_default_path(ext=output_ext)))
 
     return output_audio_path
 
@@ -70,10 +79,9 @@ with gr.Blocks() as demo:
 
     # Order must match the values returned by process_fn
     output_components = [
-        # Gradio converts the output to this format, which pyharp adds to the model's tags
+        # No format is set, so Gradio returns the container process_fn chose
         gr.Audio(
             type="filepath",
-            format="wav",
             label="Output Audio"
         ).set_info("The pitch-shifted audio."),
     ]

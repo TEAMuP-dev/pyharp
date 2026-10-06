@@ -33,6 +33,8 @@ def process_fn(input_midi_path: str, pitch_shift_amount: int) -> str:
 
     midi = load_midi(input_midi_path)
 
+    # Edit the loaded score in place to preserve ticks per quarter, tempo,
+    # and track structure.
     for track in midi.tracks:
         for note in track.notes:
             note.pitch += int(pitch_shift_amount)

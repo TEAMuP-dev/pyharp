@@ -86,7 +86,9 @@ A component's restricted formats follow its tag after a `/`, separated by `|`, _
 - **Generic `gr.File` input**: its `file_types` (_e.g._, `[".nam"]`). Gradio rejects any other file.
 - **Generic `gr.File` output**: its `file_types` (_e.g._, `[".json", ".txt"]`). pyharp raises an error if `process_fn` returns any other file.
 
-Other components are tagged without a format. A `gr.Audio` input accepts any audio, since its `format` only sets what Gradio converts it to before `process_fn` receives it, and MIDI needs no format beyond `input:midi` or `output:midi`.
+Set `format` on a `gr.Audio` output only where the model fixes its output format (see our [MIDI synthesizer](examples/midi_synthesizer/app.py) example). Leaving it unset returns whatever `process_fn` wrote, which is what lets a model preserve the format it was given (see our [pitch shifter](examples/pitch_shifter/app.py) example).
+
+Other components are tagged without a format. A `gr.Audio` input accepts any audio, since its `format` only sets the format to which Gradio converts it before `process_fn` receives it, and MIDI needs no format beyond `input:midi` or `output:midi`.
 
 A model's sample rate and channels cannot be inferred, as Gradio components do not declare them, so `SampleRate` and `Channels` are listed by hand, if at all.
 
@@ -103,7 +105,9 @@ This could be a source separation model, a text-to-music generation model, a mus
 
 The following processing code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
-from pyharp import load_audio, save_audio
+from pyharp import load_audio, save_audio, get_default_path
+
+from pathlib import Path
 
 import torchaudio
 import torch
@@ -132,7 +136,14 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
     )
     signal.audio_data = pitch_shift(signal.audio_data)
 
-    output_audio_path = str(save_audio(signal))
+    # Returned in the container it arrived in, unless that container is lossy.
+    # Such a file was encoded once already, and the shift moves that encoder's
+    # artifacts out from under the maskers that hid them, so writing .mp3 back
+    # would layer a second round of loss over a first that is now audible.
+    input_ext = Path(input_audio_path).suffix.lower()
+    output_ext = input_ext if input_ext in {".wav", ".aiff", ".flac"} else ".wav"
+
+    output_audio_path = str(save_audio(signal, get_default_path(ext=output_ext)))
 
     return output_audio_path
 ```
@@ -149,7 +160,10 @@ Note that by default PyHARP uses the [audiotools](https://github.com/descriptinc
 ## Pre-Trained Models
 If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
 - Load the model outside of `process_fn` so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)).
-- Store model weights within your app repository. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
+- Fetch model weights from where they are already published rather than copying them into your app repository. `huggingface_hub.hf_hub_download` covers a model on the Hub, and many projects ship their own downloader. Pin a revision so the app does not change behavior when upstream moves.
+- Commit weights into the repository only for small assets with no home of their own. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
+
+HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/DEPLOYMENT.md#model-weights) cover the other options, including storage buckets for very large weight sets.
 
 ## Gradio Endpoint
 The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a generic `gr.File` adds `input:file` or `output:file`, and a `gr.Textbox` adds `input:text`.
@@ -184,10 +198,9 @@ with gr.Blocks() as demo:
 
     # Order must match the values returned by process_fn
     output_components = [
-        # Gradio converts the output to this format, which pyharp adds to the model's tags
+        # No format is set, so Gradio returns the container process_fn chose
         gr.Audio(
             type="filepath",
-            format="wav",
             label="Output Audio"
         ).set_info("The pitch-shifted audio."),
     ]
@@ -704,7 +717,7 @@ tags:
   - category:effects
   - category:utility
   - input:audio
-  - output:audio/wav
+  - output:audio
   - example
   - pitch shift
 ```

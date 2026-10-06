@@ -13,7 +13,7 @@ tags:
   - category:effects
   - category:utility
   - input:audio
-  - output:audio/wav
+  - output:audio
   - example
   - pitch shift
 ---

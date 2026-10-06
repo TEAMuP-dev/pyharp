@@ -18,7 +18,7 @@ SAMPLE_RATE = 44100
 # Anything expensive to construct belongs out here, at module scope, so that it is
 # built once when the app starts instead of on every request. This soundfont is
 # downloaded on first use, and a real model would be loaded onto the GPU in the
-# same place; doing either inside process_fn would repeat the cost for every user.
+# same place. Doing either inside process_fn would repeat the cost for every user.
 synthesizer = Synthesizer(
     sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
     sample_rate=SAMPLE_RATE,
