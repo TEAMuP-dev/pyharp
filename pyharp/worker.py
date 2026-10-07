@@ -202,7 +202,10 @@ def _worker_loop(jobs_q, results_q, job_done):
             traceback.print_exc()
             results_q.put((job_id, "gr_error", (e.message, e.duration, e.visible, e.title)))
         except Exception as e:
-            results_q.put((job_id, "err", (str(e), traceback.format_exc())))
+            # The traceback goes to the log, where whoever runs the app can read it.
+            # Only the message travels on and reaches the user.
+            traceback.print_exc()
+            results_q.put((job_id, "err", str(e) or type(e).__name__))
         finally:
             running.clear()
             job_done.set()
@@ -262,8 +265,7 @@ class JobSupervisor:
             message, duration, visible, title = payload
             raise gr.Error(message, duration=duration, visible=visible, title=title)
         if status == "err":
-            short_msg, tb = payload
-            raise RuntimeError(f"{short_msg}\n\n{tb}")
+            raise RuntimeError(payload)
         if status == "died":
             raise gr.Error(
                 f"Processing stopped unexpectedly (exit code {payload}). This usually "
@@ -394,8 +396,7 @@ class JobSupervisor:
                         elif time.monotonic() - finished_at >= _RESULT_GRACE_S:
                             return "err", (
                                 "The job finished but sent nothing back. Check that "
-                                "everything process_fn returns can be pickled.",
-                                "",
+                                "everything process_fn returns can be pickled."
                             )
 
                     continue

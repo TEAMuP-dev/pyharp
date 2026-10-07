@@ -64,12 +64,19 @@ def test_gradio_error_keeps_its_fields(supervisor, progress):
     assert raised.value.duration == 7
 
 
-def test_plain_exception_arrives_with_its_traceback(supervisor, progress):
+def test_plain_exception_reaches_the_user_without_its_traceback(supervisor, progress, capfd):
+    """
+    A traceback in a HARP dialog buries the one line a user can act on, so it is
+    logged where whoever runs the app can read it instead. capfd rather than capsys,
+    since the worker is a separate process writing to the inherited stderr.
+    """
     with pytest.raises(RuntimeError) as raised:
         supervisor().run(jobs.raise_plain_error, progress=progress)
 
     assert "an unexpected failure" in str(raised.value)
-    assert "raise_plain_error" in str(raised.value)
+    assert "Traceback" not in str(raised.value)
+
+    assert "raise_plain_error" in capfd.readouterr().err
 
 
 def test_unsendable_result_is_reported_rather_than_hanging(supervisor, progress):
