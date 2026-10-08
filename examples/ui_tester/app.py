@@ -230,113 +230,115 @@ def process_fn(
     return output_audio_path, output_midi_path, output_labels, output_file_path
 
 
-# Build the Gradio endpoint
-with gr.Blocks() as demo:
-    # Audio and MIDI components become tracks in HARP. A gr.File with any
-    # other extension becomes a GUI file picker instead. Every input here is
-    # optional, so the app can be run without loading anything.
-    # Order must match the process_fn signature.
-    input_components = [
-        gr.Audio(
-            type="filepath",
-            label="Input Audio"
-        )
-        .harp_required(False)
-        .set_info("Passed through unchanged. Bundled reference audio is used if empty."),
-        gr.File(
-            type="filepath",
-            label="Input MIDI",
-            file_types=[".mid", ".midi"]
-        )
-        .harp_required(False)
-        .set_info("Passed through unchanged. Bundled reference MIDI is used if empty."),
-        gr.File(
-            type="filepath",
-            label="Input File",
-            file_types=[".txt", ".csv", ".json", ".nam"]
-        )
-        .harp_required(False)
-        .set_info("A generic file. HARP shows this as a file picker, not a track."),
-        gr.Slider(
-            minimum=0,
-            maximum=60,
-            step=1,
-            value=0,
-            label="Processing Delay (s)",
-            info="Stalls processing, so the cancel button can be tested."
-        ),
-        gr.Slider(
-            minimum=0.0,
-            maximum=1.0,
-            step=0.01,
-            value=0.5,
-            label="Gain",
-            info="A fractional slider (unused)."
-        ),
-        gr.Number(
-            minimum=1,
-            maximum=16,
-            step=1,
-            value=4,
-            label="Repetitions",
-            info="A number box (unused)."
-        ),
-        gr.Dropdown(
-            choices=["first", "second", "third"],
-            value="second",
-            label="Mode",
-            info="A dropdown (unused)."
-        ),
-        gr.Dropdown(
-            choices=["reverb", "delay", "chorus"],
-            value=["reverb", "chorus"],
-            multiselect=True,
-            label="Effects",
-            info="A dropdown allowing more than one selection (unused)."
-        ),
-        gr.Checkbox(
-            value=True,
-            label="Audio Labels",
-            info="Emit output labels over the audio track."
-        ),
-        gr.Checkbox(
-            value=True,
-            label="MIDI Labels",
-            info="Emit output labels over the MIDI track."
-        ),
-        gr.Textbox(
-            value="Hello World",
-            label="Text Prompt",
-            info="A text box. Written to the output file when no input file is given."
-        ),
-    ]
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # Audio and MIDI components become tracks in HARP. A gr.File with any
+        # other extension becomes a GUI file picker instead. Every input here is
+        # optional, so the app can be run without loading anything.
+        # Order must match the process_fn signature.
+        input_components = [
+            gr.Audio(
+                type="filepath",
+                label="Input Audio"
+            )
+            .harp_required(False)
+            .set_info("Passed through unchanged. Bundled reference audio is used if empty."),
+            gr.File(
+                type="filepath",
+                label="Input MIDI",
+                file_types=[".mid", ".midi"]
+            )
+            .harp_required(False)
+            .set_info("Passed through unchanged. Bundled reference MIDI is used if empty."),
+            gr.File(
+                type="filepath",
+                label="Input File",
+                file_types=[".txt", ".csv", ".json", ".nam"]
+            )
+            .harp_required(False)
+            .set_info("A generic file. HARP shows this as a file picker, not a track."),
+            gr.Slider(
+                minimum=0,
+                maximum=60,
+                step=1,
+                value=0,
+                label="Processing Delay (s)",
+                info="Stalls processing, so the cancel button can be tested."
+            ),
+            gr.Slider(
+                minimum=0.0,
+                maximum=1.0,
+                step=0.01,
+                value=0.5,
+                label="Gain",
+                info="A fractional slider (unused)."
+            ),
+            gr.Number(
+                minimum=1,
+                maximum=16,
+                step=1,
+                value=4,
+                label="Repetitions",
+                info="A number box (unused)."
+            ),
+            gr.Dropdown(
+                choices=["first", "second", "third"],
+                value="second",
+                label="Mode",
+                info="A dropdown (unused)."
+            ),
+            gr.Dropdown(
+                choices=["reverb", "delay", "chorus"],
+                value=["reverb", "chorus"],
+                multiselect=True,
+                label="Effects",
+                info="A dropdown allowing more than one selection (unused)."
+            ),
+            gr.Checkbox(
+                value=True,
+                label="Audio Labels",
+                info="Emit output labels over the audio track."
+            ),
+            gr.Checkbox(
+                value=True,
+                label="MIDI Labels",
+                info="Emit output labels over the MIDI track."
+            ),
+            gr.Textbox(
+                value="Hello World",
+                label="Text Prompt",
+                info="A text box. Written to the output file when no input file is given."
+            ),
+        ]
 
-    # A gr.JSON output receives the LabelList and is drawn over the tracks.
-    # Order must match the values returned by process_fn.
-    output_components = [
-        gr.Audio(
-            type="filepath",
-            label="Output Audio"
-        ).set_info("The input audio, unchanged."),
-        gr.File(
-            type="filepath",
-            label="Output MIDI",
-            file_types=[".mid", ".midi"]
-        ).set_info("The input MIDI, unchanged."),
-        gr.JSON(
-            label="Output Labels"
-        ).set_info("Labels drawn over the output tracks."),
-        gr.File(
-            type="filepath",
-            label="Output File"
-        ).set_info("A generic file output."),
-    ]
+        # A gr.JSON output receives the LabelList and is drawn over the tracks.
+        # Order must match the values returned by process_fn.
+        output_components = [
+            gr.Audio(
+                type="filepath",
+                label="Output Audio"
+            ).set_info("The input audio, unchanged."),
+            gr.File(
+                type="filepath",
+                label="Output MIDI",
+                file_types=[".mid", ".midi"]
+            ).set_info("The input MIDI, unchanged."),
+            gr.JSON(
+                label="Output Labels"
+            ).set_info("Labels drawn over the output tracks."),
+            gr.File(
+                type="filepath",
+                label="Output File"
+            ).set_info("A generic file output."),
+        ]
 
-    app = build_endpoint(
-        model_card=model_card,
-        input_components=input_components,
-        output_components=output_components,
-        process_fn=process_fn,
-    )
+        app = build_endpoint(
+            model_card=model_card,
+            input_components=input_components,
+            output_components=output_components,
+            process_fn=process_fn,
+        )
 
-demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True)
