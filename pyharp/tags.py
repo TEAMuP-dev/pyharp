@@ -188,6 +188,10 @@ def validate_tag(tag: str) -> str:
                          f"build_endpoint, so it cannot be given by hand.")
     if key == SAMPLE_RATE_KEY and not value.isdigit():
         raise ValueError(f"Sample rate in tag '{tag}' must be a whole number of Hz.")
+    if key == CHANNELS_KEY and value not in Channels.NAMES.values() and not (
+            value.isdigit() and int(value) > 0):
+        raise ValueError(f"Channels in tag '{tag}' must be \"mono\", \"stereo\", or a "
+                         f"positive whole number.")
 
     return tag
 
@@ -199,7 +203,7 @@ def io_tag(key: str, modality: Modality, formats: Iterable[str] = ()) -> str:
     Args:
         key (str): INPUT_KEY or OUTPUT_KEY.
         modality (Modality): Kind of data it carries.
-        formats (Iterable[str]): File extensions it is restricted to, if any.
+        formats (Iterable[str]): File extension restrictions, if any.
 
     Returns:
         tag (str): The tag, with any formats after a "/" and separated by "|", e.g.

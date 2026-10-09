@@ -2,6 +2,8 @@
 
 PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP), an application which enables the seamless integration of machine learning models into Digital Audio Workstations (DAWs). This repository provides a lightweight wrapper to embed **arbitrary Python code** for audio processing into [Gradio](https://www.gradio.app) endpoints accessible through HARP. In this way, HARP supports offline remote processing with algorithms or models that may be too resource-hungry to run on common hardware. HARP can be run as a standalone or from within DAWs that support external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro X](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). Please see [our website](https://harp3.netlify.app/content/supported_os.html) for more information and instructions on how to install and run HARP with various operating systems and DAWs.
 
+This README documents how to build a PyHARP app. HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/DEPLOYMENT.md) are the conventions our models follow, and cover what to decide while building one: licensing, naming and tagging a model, sourcing weights, reporting errors, preserving the input format, and choosing hardware.
+
 ## Table of Contents
 * **[Usage](#usage)**
     * **[Installing](#installing)**
@@ -79,7 +81,7 @@ The taxonomy is defined in [`taxonomy.json`](pyharp/taxonomy.json), shared by HA
 - **Analysis** (`Category.ANALYSIS`): `MUSIC_ANALYSIS`, `SPEECH_ANALYSIS`, `GENERAL_AUDIO_ANALYSIS`
 - **Utility** (`Category.UTILITY`): no subcategories. Marks a tool rather than an AI model, _e.g._, a DSP effect or a test app.
 
-Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as one `input:` or `output:` tag per kind of data: `audio`, `midi`, `file` (a generic file), `text`, or `labels`.
+Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as `input:` and `output:` tags naming the kinds of data it handles: `audio`, `midi`, `file` (a generic file), `text`, or `labels`. Components that would produce the same tag are tagged once, so two audio inputs give a single `input:audio`.
 
 A component's restricted formats follow its tag after a `/`, separated by `|`, _e.g._, `output:audio/wav` or `input:file/json|txt`:
 
@@ -173,7 +175,7 @@ next request.
 
 Being a separate process, the worker has to import your `app.py` to reach `process_fn`, and running
 that file executes everything outside of a `__main__` guard, `launch()` included. The Gradio code
-therefore belongs behind one, with `process_fn` defined above it, as every [example](#examples) does:
+therefore belongs behind one, with `process_fn` defined above it, as in every [example](#examples):
 
 ```python
 def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
@@ -187,14 +189,6 @@ if __name__ == "__main__":
 
 An app without one still works, as PyHARP will suppress the second `launch()` with a warning.
 However, in this case the interface is rebuilt in each worker, so the guard is worth adding.
-
-The behaviour above is covered by a test suite, which is worth running after any change
-to `pyharp/worker.py`:
-
-```bash
-pip install -e ".[test]"
-pytest tests
-```
 
 A few smaller notes:
 - Arguments and return values are sent between processes, so they must be picklable. Filepath strings,
@@ -219,7 +213,7 @@ If you want to build an endpoint that utilizes a pre-trained model, we recommend
 HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/DEPLOYMENT.md#model-weights) cover the other options, including storage buckets for very large weight sets.
 
 ## Gradio Endpoint
-The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a generic `gr.File` adds `input:file` or `output:file`, and a `gr.Textbox` adds `input:text`.
+The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a `gr.File` adds `input:midi` or `output:midi` where it declares MIDI file types and `input:file` or `output:file` otherwise, a `gr.Textbox` adds `input:text`, and a `gr.JSON` carrying labels adds `output:labels`.
 
 The Gradio page also carries HARP's own widgets. The "View Controls" button and the JSON box of control data exist only so that HARP can read the model's interface, so they are hidden by default. Pass `show_controls=True` to `build_endpoint` if you want to inspect them. The "Process" and "Cancel" buttons are always shown, since they are useful to someone running the model from the page directly. HARP is unaffected either way, since it calls the endpoints rather than clicking the buttons.
 
