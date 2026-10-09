@@ -1,13 +1,18 @@
-# Held before anything else is imported, because until the worker installs its own
-# handler (see worker.py) SIGINT is still Python's default, which ends the process.
-# That window covers every import below, gradio included, and in an app it covers the
-# model loaded on the way to process_fn, so it is seconds long at best. Cancelling
-# inside it would otherwise kill the worker outright and be reported as a crash
-# rather than as the cancellation it is. Holding the signal leaves stopping the
-# worker to the supervisor, which already does that for a job that will not yield.
+# PyHARP runs process_fn in a separate worker process, so that pressing Cancel in HARP
+# can stop work that has already started (see worker.py). Canceling sends the worker an
+# interrupt, the same signal Ctrl-C sends.
 #
-# multiprocessing sets _inheriting for exactly the span of a worker's imports, so
-# nothing is held in the app's own process.
+# The worker starts by importing this package and the app's module, which can take
+# seconds once gradio and a model are involved. worker.py installs a handler that turns
+# the interrupt into a clean stop, but only once it is running, so Python's default
+# handler is still in place during those imports. That one ends the process on the spot,
+# which would make a cancellation look like the model had crashed.
+#
+# Ignoring the interrupt until the imports finish avoids that. worker.py takes over from
+# there, and PyHARP ends the worker outright if a job refuses to stop.
+#
+# multiprocessing sets _inheriting only while a new process is importing, so this leaves
+# the app's own process untouched.
 import multiprocessing as _mp
 import signal as _signal
 
@@ -15,9 +20,9 @@ if getattr(_mp.current_process(), "_inheriting", False):
     try:
         _signal.signal(_signal.SIGINT, lambda *_: None)
     except ValueError:
-        # A handler can only be set from the main thread. An import from another
-        # one leaves SIGINT at its default, where cancelling kills the worker, but
-        # that is better than refusing to import at all.
+        # Only the main thread can install a signal handler. If this import is not on
+        # it, the interrupt keeps its default behavior and canceling kills the worker,
+        # which is still better than refusing to import at all.
         pass
 
 from .core import *

@@ -1,13 +1,13 @@
 """
 Runs process_fn in a worker process, so that a job can be stopped once it has started.
 
-Gradio has no way to interrupt a running event handler, and a Python thread cannot be
-killed, so cancelling one in place is not possible: the work would carry on holding the
-GPU whatever the caller did. Running it in a separate process makes it stoppable, and
-reusing that process across requests keeps whatever the app loaded on the way to
-process_fn from being paid for again on every job.
+Once Gradio has called process_fn, nothing can make it return early, because Python
+offers no way to kill the thread running it. A canceled job would carry on to the end,
+holding the GPU, whatever the user pressed. A separate process can be signaled or
+killed, which makes the job stoppable, and reusing that process across requests means
+whatever the app loaded on the way to process_fn is not paid for again on every job.
 
-Only JobSupervisor is used elsewhere; everything else here supports it.
+Only JobSupervisor is used elsewhere. Everything else here supports it.
 """
 
 import multiprocessing as mp
@@ -20,11 +20,23 @@ import time
 import gradio as gr
 
 
-# "spawn" avoids deadlocks that "fork" can cause with CUDA/PyTorch on Linux (Hugging Face
-# Spaces). A private context is used rather than mp.set_start_method(force=True), which
-# would change the start method for the whole process and override whatever the app or
-# any other library had chosen.
+# How a new process is started. "fork" copies the current one, which can deadlock with
+# CUDA and PyTorch on Linux (Hugging Face Spaces), so "spawn" is used instead: it starts
+# a fresh interpreter, which imports the app module again to reach process_fn.
+#
+# A private context is used rather than mp.set_start_method(force=True), which would
+# change the start method for the whole process and override whatever the app or any
+# other library had chosen.
 _MP = mp.get_context("spawn")
+
+# Tells "no id was given" apart from "the caller has no id"
+_UNSET = object()
+
+# An HTTP caller that sends no id of its own, such as the Gradio page in a browser or a
+# HARP older than CLIENT_HEADER. One cannot be told apart from another, so a cancel from
+# one stops nothing and the job runs to completion in the background, which is how this
+# behaved before the worker existed.
+_ANONYMOUS = object()
 
 # Grace period for a result already in flight when the worker exits. The queue is fed by
 # a background thread in the worker, so a result put just before exit can arrive slightly
@@ -34,7 +46,7 @@ _RESULT_GRACE_S = 10
 # How often the supervisor wakes to re-check the worker while waiting for messages
 _POLL_S = 0.1
 
-# How long a cancelled job is given to unwind before the worker is killed outright
+# How long a canceled job is given to unwind before the worker is killed outright
 _INTERRUPT_GRACE_S = 2
 
 # "spawn" re-imports the app module in the worker to reach process_fn, which for an app
@@ -42,9 +54,9 @@ _INTERRUPT_GRACE_S = 2
 # Suppressing it keeps such an app working, at the cost of building its interface in the
 # worker as well.
 #
-# multiprocessing sets _inheriting for exactly the span of that re-import - it is the flag
-# behind its own "if __name__ == '__main__'" guidance - so it identifies a worker without
-# any global state having to be set. Read defensively: if it ever goes away, nothing is
+# multiprocessing sets _inheriting for exactly the span of that re-import, the flag behind
+# its own "if __name__ == '__main__'" guidance, so it identifies a worker without any
+# global state having to be set. Read defensively: if it ever goes away, nothing is
 # suppressed and an unguarded app is back to needing the guard.
 if getattr(mp.current_process(), "_inheriting", False):
 
@@ -86,14 +98,41 @@ def _capture_request():
         # Both the live and the queued shapes of a request convert directly.
         return dict(request.headers)
     except Exception:
-        # A request that cannot be read is not worth failing the job over; the job
-        # runs, and on ZeroGPU it falls back to the anonymous allowance as before
+        # A request that cannot be read should not fail the job. It runs as it would
+        # have, and on ZeroGPU falls back to the anonymous allowance. Empty rather than
+        # None, so that the caller counts as unidentified rather than as a direct call,
+        # which is what None means here.
+        return {}
+
+
+# HARP sends this on both process and cancel, with one value per model tab, so that a
+# cancel can be matched to its own job.
+CLIENT_HEADER = "x-harp-client"
+
+
+def _client_id(headers):
+    """
+    Identifies the caller, from the headers _capture_request collected.
+
+    Returns None where there was no request at all, which is a direct call rather than
+    one over HTTP, and _ANONYMOUS for a request carrying no id of its own.
+    """
+    if headers is None:
         return None
+
+    for name, value in headers.items():
+        if str(name).lower() == CLIENT_HEADER:
+            identifier = str(value).strip()
+
+            if identifier:
+                return identifier
+
+    return _ANONYMOUS
 
 
 def _restore_request(headers):
     """
-    Puts the caller's request back in context, so that the job runs as they asked.
+    Puts the caller's request back in context, so that the job runs as asked.
 
     The counterpart to _capture_request, called in the worker. Set on every job,
     including to None, so that one caller's headers cannot be left behind for the
@@ -138,21 +177,21 @@ def _worker_loop(jobs_q, results_q, job_done):
     Runs jobs one after another until the supervisor stops sending them.
 
     The worker outlives individual jobs, so a model loaded on the way to process_fn
-    is loaded once rather than once per request. A cancelled job arrives as
-    SIGINT, which unwinds Python-level work and leaves the worker - and everything it
-    has loaded - intact for the next job.
+    is loaded once rather than once per request. A canceled job arrives as SIGINT,
+    which stops Python-level work and leaves the worker intact for the next job, along
+    with everything it has loaded.
     """
     import pickle
     import traceback
 
     try:
         # Leads its own process group, so that killing an uninterruptible job takes
-        # whatever it started with it. A model invoked as a subprocess - the layout the
-        # dual-environment Docker Spaces use - would otherwise be reparented and keep
-        # running after its worker is gone.
+        # whatever it started with it. A model invoked as a subprocess, which is the
+        # layout the dual-environment Docker Spaces use, would otherwise be reparented
+        # and keep running after its worker is gone.
         os.setsid()
     except (AttributeError, OSError):
-        # Not available on this platform; the fallback in _end_process still applies
+        # Not available on this platform, so the fallback in _end_process applies
         pass
 
     current_id = [None]
@@ -182,22 +221,28 @@ def _worker_loop(jobs_q, results_q, job_done):
         current_id[0] = job_id
 
         try:
-            # Set inside the try, so an interrupt landing here is caught below rather
-            # than unwinding out of the loop and ending the worker
-            running.set()
+            try:
+                # Set inside the try, so an interrupt landing here is caught below
+                # rather than unwinding out of the loop and ending the worker
+                running.set()
 
-            _restore_request(headers)
+                _restore_request(headers)
 
-            result = fn(*args)
+                result = fn(*args)
+            finally:
+                # Reporting the outcome is not interruptible. A cancel arriving once
+                # the job is over would otherwise raise inside the handler below, where
+                # nothing catches it, and end the worker instead of being ignored.
+                running.clear()
 
-            # Pickling happens on a feeder thread once queued, where a failure would be
-            # invisible and the job would look like it never finished. Failing here
-            # instead reports it as the error it is.
+            # Once queued, the value is pickled on the background thread multiprocessing
+            # uses to send it, where a failure would be invisible and the job would look
+            # like it never finished. Failing here instead reports it as the error it is.
             pickle.dumps(result)
 
             results_q.put((job_id, "ok", result))
         except KeyboardInterrupt:
-            results_q.put((job_id, "gr_error", ("Job cancelled.", 10, True, "Cancelled")))
+            results_q.put((job_id, "gr_error", ("Job canceled.", 10, True, "Canceled")))
         except gr.Error as e:
             traceback.print_exc()
             results_q.put((job_id, "gr_error", (e.message, e.duration, e.visible, e.title)))
@@ -213,19 +258,21 @@ def _worker_loop(jobs_q, results_q, job_done):
 
 class JobSupervisor:
     """
-    Runs process_fn in a worker process that can be cancelled or timed out, rather
+    Runs process_fn in a worker process that can be canceled or timed out, rather
     than running to completion server-side.
 
-    The worker is reused across requests so that whatever the app loads at import
-    time - model weights above all - is paid for once rather than per job. Cancelling
-    interrupts the job in place and keeps the worker; only a job stuck in a native
-    call that will not yield costs a restart, and the replacement is started
-    immediately so it is usually warm again before the next request.
+    The worker is reused across requests so that whatever the app loads at import time,
+    model weights above all, is paid for once rather than per job. Canceling interrupts
+    the job and keeps the worker. Only a job stuck in a native call that cannot be
+    interrupted costs a restart, and the replacement is started immediately so it is
+    usually warm again before the next request.
 
-    One supervisor is shared by every caller of an endpoint, so a Process or Cancel
-    from one visitor stops whatever job is running. Gradio serialises queued events
-    by default, which keeps that to a single job at a time; raising an event's
-    concurrency_limit above 1 would let visitors cancel each other.
+    One supervisor is shared by every caller of an endpoint, so a cancel is matched to
+    the job it was meant for rather than stopping whatever is running (see cancel).
+    Starting a job is serialized by Gradio instead, whose concurrency_limit defaults to
+    1, so a second request waits its turn rather than preempting. Raising that limit,
+    whether on the event or through GRADIO_DEFAULT_CONCURRENCY_LIMIT, would let two jobs
+    reach one supervisor, which tracks a single job at a time.
     """
 
     def __init__(self, timeout_s=900):
@@ -236,15 +283,19 @@ class JobSupervisor:
         self._job_done = None
         self._job_id = 0
         self._busy = False
+        self._client = None
         self._lock = threading.Lock()
 
     def run(self, fn, *args, progress=None):
         # Taken before anything else, while the request being served is still in context
         headers = _capture_request()
+        client = _client_id(headers)
 
-        # Single-flight: a new request stops whatever was running, rather than queueing
-        # behind it, so that Process always starts the job the user just asked for
-        self.cancel()
+        # Single-flight: one job at a time, so a new request from the same caller stops
+        # whatever they had running rather than running beside it. Gradio's queue already
+        # serializes this event, since concurrency_limit defaults to 1, so this only has
+        # anything to do where that limit has been raised.
+        self.cancel(client)
 
         with self._lock:
             worker, jobs_q, results_q, job_done = self._ensure_worker()
@@ -252,6 +303,7 @@ class JobSupervisor:
             self._job_id += 1
             job_id = self._job_id
             self._busy = True
+            self._client = client
 
         jobs_q.put((job_id, fn, args, headers))
 
@@ -274,9 +326,34 @@ class JobSupervisor:
             )
         return payload
 
-    def cancel(self):
+    def cancel(self, client=_UNSET):
+        """
+        Stops the running job, if it belongs to the caller.
+
+        One supervisor serves every visitor, so a cancel has to be matched to its own
+        job. Gradio matches on the caller's session, but HARP reaches the endpoints over
+        the API, where every call is a fresh session, so the match is made on the id HARP
+        sends instead (see CLIENT_HEADER).
+
+        A caller that sends no id cannot be matched, so nothing is stopped and the work
+        runs to completion in the background. That was the behavior before the worker
+        existed, so an older HARP and the Gradio page lose nothing and cannot reach
+        another caller's job.
+
+        Args:
+            client: The caller's id. Read from the request being served when omitted.
+        """
+        if client is _UNSET:
+            client = _client_id(_capture_request())
+
         with self._lock:
             if not self._busy or self._worker is None or not self._worker.is_alive():
+                return
+
+            if client is _ANONYMOUS or self._client is _ANONYMOUS:
+                return
+
+            if self._client != client:
                 return
 
             worker, results_q, job_done = self._worker, self._results_q, self._job_done
@@ -296,9 +373,14 @@ class JobSupervisor:
             if self._worker is not worker or not worker.is_alive():
                 return
 
+            # The job ended during the grace period and another has taken its place,
+            # which this cancel has no claim on
+            if self._job_id != job_id:
+                return
+
             # Stuck somewhere that will not accept an interrupt, so nothing short of
             # ending the process will stop it
-            self._discard_worker("cancelled", results_q, job_id)
+            self._discard_worker("canceled", results_q, job_id)
 
         # Reload while the user decides what to do next, rather than on their next request
         threading.Thread(target=self._warm_up, daemon=True).start()
@@ -403,7 +485,7 @@ class JobSupervisor:
 
                 # The worker is gone. Its result may still be in flight, since the
                 # queue is fed by a background thread, so allow a grace period before
-                # concluding that it stopped without posting one - which is what a
+                # concluding that it stopped without posting one, which is what a
                 # segfault or an out-of-memory kill looks like. Waiting forever here
                 # would block this thread, and the queue behind it, for good.
                 if exited_at is None:
@@ -457,7 +539,8 @@ class JobSupervisor:
             return
 
         with self._lock:
-            if self._worker is worker:
+            # As in cancel, only if this is still the job that overran
+            if self._worker is worker and self._job_id == job_id:
                 self._discard_worker("timed out", results_q, job_id)
 
         threading.Thread(target=self._warm_up, daemon=True).start()

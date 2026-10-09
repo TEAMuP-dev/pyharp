@@ -168,7 +168,7 @@ than leaving it to run to completion server-side. `build_endpoint` also takes `t
 legitimately run longer. One job runs at a time and starting a new one stops whatever was running.
 
 The worker is **reused between requests**, so whatever your `app.py` loads on the way to `process_fn`
-is loaded once rather than once per job. Cancelling interrupts the job where it stands and keeps the
+is loaded once rather than once per job. Canceling interrupts the job where it stands and keeps the
 worker, models included. Only a job stuck inside a library call that refuses to be interrupted costs a
 restart, and a replacement worker starts loading immediately, so it is usually ready again before the
 next request.

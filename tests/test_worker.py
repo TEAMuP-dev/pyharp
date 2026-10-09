@@ -1,13 +1,15 @@
 """
 Tests for running process_fn in a worker process.
 
-The behaviour under test is mostly about what happens when things go wrong -
+The behavior under test is mostly about what happens when things go wrong -
 cancellation, timeouts, crashes - so most of these drive a failure deliberately and
 assert on how it is reported. Each one keeps its own timings short; nothing here
 should take more than a few seconds.
 """
 
+import contextvars
 import os
+import threading
 import time
 
 import gradio as gr
@@ -146,7 +148,7 @@ def test_cancel_stops_the_job_and_keeps_the_worker(supervisor, progress):
     with pytest.raises(gr.Error) as raised:
         sup.run(jobs.sleep_interruptibly, 60, progress=progress)
 
-    assert raised.value.message == "Job cancelled."
+    assert raised.value.message == "Job canceled."
     assert time.monotonic() - started < 10
 
     # Interrupted in place, so whatever the worker had loaded is still loaded
@@ -163,7 +165,7 @@ def test_cancel_replaces_a_worker_that_ignores_interrupts(supervisor, progress):
     with pytest.raises(gr.Error) as raised:
         sup.run(jobs.sleep_ignoring_interrupts, 60, progress=progress)
 
-    assert raised.value.message == "Job cancelled."
+    assert raised.value.message == "Job canceled."
 
     # Killing it is the only way to stop it, so the next job gets a fresh worker
     assert sup.run(jobs.identify, progress=progress)["worker_id"] != warm["worker_id"]
@@ -199,11 +201,11 @@ def test_starting_a_job_stops_the_previous_one(supervisor, progress):
     assert sup.run(jobs.identify, progress=progress)["pid"] != os.getpid()
 
     slow.join(timeout=15)
-    assert outcome.get("error") == "Job cancelled."
+    assert outcome.get("error") == "Job canceled."
 
 
 def test_a_stopped_job_does_not_report_into_the_next_one(supervisor, progress):
-    """The sentinel left by a cancelled job must not be read as the next result."""
+    """The sentinel left by a canceled job must not be read as the next result."""
     sup = supervisor()
 
     cancel_after(sup, 1)
@@ -293,3 +295,101 @@ def test_a_request_does_not_leak_into_the_next_job(supervisor, progress, serving
     serving_request(None)
 
     assert instance.run(jobs.report_request_headers, progress=progress) is None
+
+# --------------------------------------------------------------------------------
+# Whose job a cancel belongs to
+# --------------------------------------------------------------------------------
+
+
+def _run_in_background(sup, outcome, progress, seconds=14):
+    """
+    Starts a job on another thread, carrying this thread's request context with it.
+
+    A new thread gets an empty context, so the headers the test set would not reach
+    run() without copying it over.
+    """
+    def job():
+        try:
+            outcome["result"] = sup.run(jobs.sleep_interruptibly, seconds, progress=progress)
+        except gr.Error as error:
+            outcome["error"] = error.message
+
+    thread = threading.Thread(target=contextvars.copy_context().run, args=(job,), daemon=True)
+    thread.start()
+
+    return thread
+
+
+def test_a_cancel_from_another_client_is_ignored(supervisor, progress, serving_request):
+    """One visitor pressing Cancel must not stop a job another visitor started."""
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"x-harp-client": "tab-1"})
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"x-harp-client": "tab-2"})
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("result") == "finished", outcome
+
+
+def test_a_cancel_from_the_same_client_stops_the_job(supervisor, progress, serving_request):
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"x-harp-client": "tab-1"})
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"x-harp-client": "tab-1"})
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("error") == "Job canceled.", outcome
+
+
+def test_an_unidentified_cancel_cannot_stop_an_identified_job(supervisor, progress, serving_request):
+    """The Gradio page in a browser must not stop a job HARP started."""
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"x-harp-client": "tab-1"})
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"user-agent": "a browser"})
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("result") == "finished", outcome
+
+
+def test_an_unidentified_cancel_stops_nothing(supervisor, progress, serving_request):
+    """
+    Two callers that send no id cannot be told apart, so neither stops the other and
+    the job finishes in the background. This is what cancelling did before the worker,
+    so an older HARP is no worse off than it was before.
+    """
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"user-agent": "an older HARP"})
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"user-agent": "a different older HARP"})
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("result") == "finished", outcome
