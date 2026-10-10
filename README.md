@@ -2,7 +2,7 @@
 
 PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP), an application which enables the seamless integration of machine learning models into Digital Audio Workstations (DAWs). This repository provides a lightweight wrapper to embed **arbitrary Python code** for audio processing into [Gradio](https://www.gradio.app) endpoints accessible through HARP. In this way, HARP supports offline remote processing with algorithms or models that may be too resource-hungry to run on common hardware. HARP can be run as a standalone or from within DAWs that support external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro X](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). Please see [our website](https://harp3.netlify.app/content/supported_os.html) for more information and instructions on how to install and run HARP with various operating systems and DAWs.
 
-This README documents how to build a PyHARP app. HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/DEPLOYMENT.md) are the conventions our models follow, and cover what to decide while building one: licensing, naming and tagging a model, sourcing weights, reporting errors, preserving the input format, and choosing hardware.
+This README documents how to build a PyHARP app. HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md) are the conventions our models follow, and cover what to decide while building one: licensing, naming and tagging a model, sourcing weights, reporting errors, preserving the input format, and choosing hardware.
 
 ## Table of Contents
 * **[Usage](#usage)**
@@ -222,7 +222,7 @@ If you want to build an endpoint that utilizes a pre-trained model, we recommend
 - Fetch model weights from where they are already published rather than copying them into your app repository. `huggingface_hub.hf_hub_download` covers a model on the Hub, and many projects ship their own downloader. Pin a revision so the app does not change behavior when upstream moves.
 - Commit weights into the repository only for small assets with no home of their own. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
 
-HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/DEPLOYMENT.md#model-weights) cover the other options, including storage buckets for very large weight sets.
+HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#model-weights) cover the other options, including storage buckets for very large weight sets.
 
 ## Gradio Endpoint
 The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a `gr.File` adds `input:midi` or `output:midi` where it declares MIDI file types and `input:file` or `output:file` otherwise, a `gr.Textbox` adds `input:text`, and a `gr.JSON` carrying labels adds `output:labels`.
@@ -432,16 +432,15 @@ python examples/pitch_shifter/app.py
 
 This will create a local Gradio endpoint at the URL `http://localhost:<PORT>`, as well as a forwarded public Gradio endpoint at the URL `https://<RANDOM_ID>.gradio.live/`.
 
-Below, you can see example command line output after running `app.py`. Both the local endpoint (local URL) and the forwarded endpoint (public URL) are shown:
+<!-- TODO: screenshot of the command line output after running app.py, with the local and public URLs
+![Command line output after running app.py, showing the local and public Gradio URLs](<URL>)
+-->
 
-<!--TODO - updated screenshot-->
-![Command line output after running app.py, showing the local and public Gradio URLs](https://github.com/user-attachments/assets/6d27b6eb-9cf3-4f45-badc-9547b24f2091)
+The Gradio app can be loaded in HARP as a custom path using either the local or public URL.
 
-
-The Gradio app can be loaded in HARP as a custom path using either the local or public URL, as shown below.
-
-<!--TODO - updated screenshot-->
-![Loading a Gradio endpoint in HARP by entering its URL as a custom path](https://github.com/user-attachments/assets/44ef5c6d-582a-4848-9988-cba3ca4ab941)
+<!-- TODO: screenshot of the URL being entered in HARP as a custom path
+![Loading a Gradio endpoint in HARP by entering its URL as a custom path](<URL>)
+-->
 
 # Hosting Endpoints
 Automatically generated Gradio endpoints are only available for a maximum of 72 hours. If you'd like to keep an endpoint active and share it with other users, you can use [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely. If you already have your own GPU machine, you can instead host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
@@ -731,7 +730,7 @@ git cat-file -s HEAD:resources/test.wav
 ```
 
 ## Self-Hosted Endpoints
-Spaces are the quickest way to publish an app, but they cap the hardware you can use and require the model and its weights to be uploaded to Hugging Face. When you already have a GPU machine, such as a lab workstation or a compute node, you can host the app there instead and reach it from HARP over an SSH tunnel, keeping private weights and audio on your own hardware. This is also the setup that best showcases what HARP is for: heavy processing on remote compute, driven from a DAW on your laptop.
+Spaces are the quickest way to publish an app, but they cap the hardware you can use and require the model and its weights to be uploaded to Hugging Face. When you already have a GPU machine, such as a lab workstation or a compute node, you can host the app there instead and reach it from HARP over an SSH tunnel, keeping private weights and audio on your own hardware.
 
 1. **Load the model once, outside `process_fn`.**
 
