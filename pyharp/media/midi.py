@@ -10,6 +10,9 @@ __all__ = [
     'get_tick_time_in_seconds'
 ]
 
+# The tempo a MIDI file plays at until a tempo event says otherwise
+DEFAULT_QPM = 120.0
+
 def load_midi(input_midi_path):
     """
     Loads MIDI at a specified path using symusic (https://yikai-liao.github.io/symusic/).
@@ -81,19 +84,23 @@ def get_tick_time_in_seconds(tick, midi):
         time (float): absolute time in seconds.
     """
 
-    time, ticks_elapsed = 0.0, 0
+    # The stretch before the first tempo event plays at the default, as does a file
+    # carrying no tempo at all. A tempo event at tick zero supersedes this entry, since
+    # the stretch it covers is then empty.
+    segments = [(0, DEFAULT_QPM)]
+    segments += [
+        (tempo.time, tempo.qpm) for tempo in sorted(midi.tempos, key=lambda t: t.time)
+    ]
 
-    for i in range(len(midi.tempos)):
-        tick_duration = tick - ticks_elapsed
+    time = 0.0
 
-        if tick_duration <= 0:
+    for index, (start, qpm) in enumerate(segments):
+        if start >= tick:
             break
 
-        if i != len(midi.tempos) - 1:
-            tick_duration = min(tick_duration, midi.tempos[i + 1].time - ticks_elapsed)
+        # Up to the next tempo event, or to the requested tick where none follows
+        end = segments[index + 1][0] if index + 1 < len(segments) else tick
 
-        ticks_elapsed += tick_duration
-
-        time += ticks_to_seconds(tick_duration, midi.tempos[i].qpm, midi.ticks_per_quarter)
+        time += ticks_to_seconds(min(end, tick) - start, qpm, midi.ticks_per_quarter)
 
     return time

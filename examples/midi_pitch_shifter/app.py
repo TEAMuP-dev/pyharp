@@ -1,64 +1,85 @@
+"""
+MIDI Pitch Shifter: a MIDI-to-MIDI template for PyHARP.
+
+Mirrors the audio pitch shifter, but operates on MIDI. HARP renders a MIDI
+track as a piano roll rather than a waveform.
+"""
+
 from pyharp import *
 
 import gradio as gr
 
 
-# Create a ModelCard
+# Metadata shown in HARP's model info panel
 model_card = ModelCard(
-    name='MIDI Pitch Shifter',
+    name="MIDI Pitch Shifter",
+    author="TEAMuP",
     description="A MIDI pitch shifting example for HARP v3.",
-    author='TEAMuP',
-    tags=["example", "midi", "pitch shift", "v3"]
+    tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 
-# Define the process function
-def process_fn(
-    input_midi_path: str,
-    pitch_shift_amount: int
-) -> str:
+
+def process_fn(input_midi_path: str, pitch_shift_amount: int) -> str:
+    """
+    Transpose every note in the input MIDI.
+
+    Args:
+        input_midi_path (str): Path to the MIDI file sent by HARP.
+        pitch_shift_amount (int): Amount to transpose by, in semitones.
+
+    Returns:
+        output_midi_path (str): Path to the transposed MIDI.
+    """
 
     midi = load_midi(input_midi_path)
 
-    for t in midi.tracks:
-        for n in t.notes:
-            n.pitch += int(pitch_shift_amount)
-    
+    # Edit the loaded score in place to preserve ticks per quarter, tempo,
+    # and track structure.
+    for track in midi.tracks:
+        for note in track.notes:
+            note.pitch += int(pitch_shift_amount)
+
     output_midi_path = str(save_midi(midi))
 
     return output_midi_path
 
-# Build Gradio endpoint
-with gr.Blocks() as demo:
-    # Define input Gradio Components
-    input_components = [
-        gr.File(type="filepath",
-                label="Input Midi",
-                file_types=[".mid", ".midi"])
-        .harp_required(True),
-        gr.Slider(
-            minimum=-24,
-            maximum=24,
-            step=1,
-            value=7,
-            label="Pitch Shift (semitones)",
-            info="Controls the amount of pitch shift in semitones"
-        ),
-    ]
 
-    # Define output Gradio Components
-    output_components = [
-        gr.File(type="filepath",
-                label="Output Midi",
-                file_types=[".mid", ".midi"])
-        .set_info("The pitch-shifted MIDI."),
-    ]
+# The processing worker imports this file, so the app must not be built there
+if __name__ == "__main__":
+    # Build the Gradio endpoint
+    with gr.Blocks() as demo:
+        # A gr.File restricted to MIDI extensions becomes a MIDI track in HARP.
+        # Order must match the process_fn signature.
+        input_components = [
+            gr.File(
+                type="filepath",
+                label="Input MIDI",
+                file_types=[".mid", ".midi"]
+            ).harp_required(True),
+            gr.Slider(
+                minimum=-24,
+                maximum=24,
+                step=1,
+                value=7,
+                label="Pitch Shift (semitones)",
+                info="Amount to transpose by."
+            ),
+        ]
 
-    # Build a HARP-compatible endpoint
-    app = build_endpoint(
-        model_card=model_card,
-        input_components=input_components,
-        output_components=output_components,
-        process_fn=process_fn,
-    )
+        # Order must match the values returned by process_fn
+        output_components = [
+            gr.File(
+                type="filepath",
+                label="Output MIDI",
+                file_types=[".mid", ".midi"]
+            ).set_info("The transposed MIDI."),
+        ]
 
-demo.queue().launch(share=True, show_error=False, pwa=True)
+        app = build_endpoint(
+            model_card=model_card,
+            input_components=input_components,
+            output_components=output_components,
+            process_fn=process_fn,
+        )
+
+    demo.queue().launch(share=True, show_error=True, pwa=True)

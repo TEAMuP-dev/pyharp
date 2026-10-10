@@ -1,0 +1,147 @@
+{
+    "categories": [
+        {
+            "id": "generation",
+            "name": "Generation",
+            "subcategories": [
+                {
+                    "id": "holistic",
+                    "name": "Holistic"
+                },
+                {
+                    "id": "infilling",
+                    "name": "Infilling"
+                },
+                {
+                    "id": "continuation",
+                    "name": "Continuation"
+                },
+                {
+                    "id": "accompaniment",
+                    "name": "Accompaniment"
+                },
+                {
+                    "id": "editing",
+                    "name": "Editing"
+                }
+            ]
+        },
+        {
+            "id": "synthesis",
+            "name": "Synthesis",
+            "subcategories": [
+                {
+                    "id": "performance-rendering",
+                    "name": "Performance Rendering"
+                },
+                {
+                    "id": "instrument-synthesis",
+                    "name": "Instrument Synthesis"
+                },
+                {
+                    "id": "singing-voice-synthesis",
+                    "name": "Singing Voice Synthesis"
+                },
+                {
+                    "id": "text-to-speech",
+                    "name": "Text-to-Speech"
+                }
+            ]
+        },
+        {
+            "id": "effects",
+            "name": "Effects",
+            "subcategories": [
+                {
+                    "id": "neural-analog-effects",
+                    "name": "Neural Analog Effects"
+                },
+                {
+                    "id": "timbre-transfer",
+                    "name": "Timbre Transfer"
+                },
+                {
+                    "id": "effect-removal",
+                    "name": "Effect Removal"
+                }
+            ]
+        },
+        {
+            "id": "enhancement",
+            "name": "Enhancement",
+            "subcategories": [
+                {
+                    "id": "denoising",
+                    "name": "Denoising"
+                },
+                {
+                    "id": "dereverberation",
+                    "name": "Dereverberation"
+                },
+                {
+                    "id": "bandwidth-extension",
+                    "name": "Bandwidth Extension"
+                },
+                {
+                    "id": "restoration",
+                    "name": "Restoration"
+                }
+            ]
+        },
+        {
+            "id": "production",
+            "name": "Production",
+            "subcategories": [
+                {
+                    "id": "automatic-mixing",
+                    "name": "Automatic Mixing"
+                },
+                {
+                    "id": "mixing-style-transfer",
+                    "name": "Mixing Style Transfer"
+                },
+                {
+                    "id": "post-processing",
+                    "name": "Post-Processing"
+                }
+            ]
+        },
+        {
+            "id": "separation",
+            "name": "Separation",
+            "subcategories": [
+                {
+                    "id": "stem-separation",
+                    "name": "Stem Separation"
+                },
+                {
+                    "id": "target-source-extraction",
+                    "name": "Target Source Extraction"
+                }
+            ]
+        },
+        {
+            "id": "analysis",
+            "name": "Analysis",
+            "subcategories": [
+                {
+                    "id": "music-analysis",
+                    "name": "Music"
+                },
+                {
+                    "id": "speech-analysis",
+                    "name": "Speech"
+                },
+                {
+                    "id": "general-audio-analysis",
+                    "name": "General Audio"
+                }
+            ]
+        },
+        {
+            "id": "utility",
+            "name": "Utility",
+            "subcategories": []
+        }
+    ]
+}

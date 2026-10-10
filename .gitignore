@@ -3,6 +3,9 @@ examples/**/.gitattributes
 .gradio
 _outputs
 *.egg-info
+build/
+dist/
+.pytest_cache
 __pycache__
 .DS_Store
 .idea

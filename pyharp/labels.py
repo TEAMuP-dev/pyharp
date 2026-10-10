@@ -1,11 +1,10 @@
 from dataclasses import dataclass, field
-from typing import List, Union, Dict
+from typing import Dict, List, Optional, Union
 
 
 __all__ = [
     'OutputLabel',
     'AudioLabel',
-    'SpectrogramLabel',
     'MidiLabel',
     'LabelList'
 ]
@@ -15,9 +14,9 @@ class OutputLabel:
     t: float
     label: str
     duration: float = 0.0
-    description: str = None
+    description: Optional[str] = None
     color: int = 0
-    link: str = None
+    link: Optional[str] = None
 
     def __post_init__(self):
         self.label_type = self.__class__.__name__
@@ -32,17 +31,13 @@ class OutputLabel:
 
 @dataclass
 class AudioLabel(OutputLabel):
-    amplitude: float = None
-
-@dataclass
-class SpectrogramLabel(OutputLabel):
-    frequency: float = None
+    amplitude: Optional[float] = None
 
 @dataclass
 class MidiLabel(OutputLabel):
-    pitch: float = None
+    pitch: Optional[float] = None
 
-LabelUnion = Union[AudioLabel, SpectrogramLabel, MidiLabel, OutputLabel]
+LabelUnion = Union[AudioLabel, MidiLabel, OutputLabel]
 
 @dataclass
 class LabelList:
@@ -50,9 +45,11 @@ class LabelList:
     labels: List[LabelUnion] = field(default_factory = list)
 
     def __post_init__(self):
-        # Add meta._type to match Gradio components
-        # (e.g., for gr.File meta._type = "gradio.FileData")
+        # Anything the caller put in meta is kept, with _type added to match Gradio
+        # components (e.g., for gr.File meta._type = "gradio.FileData"). Set last, so
+        # that it cannot be overwritten: HARP reads it to tell the output apart.
         self.meta = {
+            **self.meta,
             "_type": f"pyharp.{self.__class__.__name__}"
         }
 

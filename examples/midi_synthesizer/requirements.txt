@@ -1,1 +1,1 @@
--e git+https://github.com/TEAMuP-dev/pyharp.git#egg=pyharp
+git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.0
