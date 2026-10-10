@@ -7,6 +7,7 @@ This README documents how to build a PyHARP app. HARP's [deployment guidelines](
 ## Table of Contents
 * **[Usage](#usage)**
     * **[Installing](#installing)**
+    * **[Tests](#tests)**
 * **[PyHARP Apps](#pyharp-apps)**
     * **[Model Card](#model-card)**
         * **[Tags](#tags)**
@@ -41,6 +42,14 @@ Note that PyHARP depends on [Gradio](https://www.gradio.app/). We recommend inst
 > **Gradio `4.x` and earlier will not work.** HARP communicates over the `/gradio_api/call/` endpoints introduced in Gradio `5.0.0`. Earlier releases expose a different API and every request will fail.
 >
 > **Gradio `5.x` works, but reports errors poorly.** Versions before `6.13.0` discard the error payload on the endpoint HARP uses and send an empty response instead, so a failed `process_fn` reaches HARP with no message at all.
+
+## Tests
+A test suite covers the model card and its tags, the Gradio components HARP reads, output labels, loading and saving media, and the [worker process](#worker-processes) that makes a job cancelable. Run it after changing anything under `pyharp/`:
+```bash
+pip install -e ".[test]"
+pytest tests
+```
+The worker tests start real processes and wait on real timeouts, so the suite takes a few minutes.
 
 # PyHARP Apps
 A PyHARP app is a `ModelCard` describing the model, a `process_fn` doing the work, and a `gr.Blocks` block wiring the two together through `build_endpoint`. The sections below cover each piece in turn, and [Examples](#examples) puts them together into complete, runnable apps.
@@ -81,7 +90,7 @@ The taxonomy is defined in [`taxonomy.json`](pyharp/taxonomy.json), shared by HA
 - **Analysis** (`Category.ANALYSIS`): `MUSIC_ANALYSIS`, `SPEECH_ANALYSIS`, `GENERAL_AUDIO_ANALYSIS`
 - **Utility** (`Category.UTILITY`): no subcategories. Marks a tool rather than an AI model, _e.g._, a DSP effect or a test app.
 
-Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as `input:` and `output:` tags naming the kinds of data it handles: `audio`, `midi`, `file` (a generic file), `text`, or `labels`. Components that would produce the same tag are tagged once, so two audio inputs give a single `input:audio`.
+Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as `input:` and `output:` tags naming the kinds of data it handles: `audio`, `midi`, `file` (a generic file), `text` (an input only), or `labels` (an output only). Components that would produce the same tag are tagged once, so two audio inputs give a single `input:audio`.
 
 A component's restricted formats follow its tag after a `/`, separated by `|`, _e.g._, `output:audio/wav` or `input:file/json|txt`:
 
@@ -165,7 +174,8 @@ Note that by default PyHARP uses the [audiotools](https://github.com/descriptinc
 `process_fn` runs in a separate worker process, so that pressing Cancel in HARP stops the work rather
 than leaving it to run to completion server-side. `build_endpoint` also takes `timeout_s` (default
 `900`, _i.e._ 15 minutes), after which a job is stopped the same way. Increase it for models that
-legitimately run longer. One job runs at a time and starting a new one stops whatever was running.
+legitimately run longer. One job runs at a time, which `build_endpoint` enforces by giving the
+process event a `concurrency_limit` of `1`, and starting a new job stops whatever was running.
 
 The worker is **reused between requests**, so whatever your `app.py` loads on the way to `process_fn`
 is loaded once rather than once per job. Canceling interrupts the job where it stands and keeps the
@@ -196,8 +206,10 @@ A few smaller notes:
 - `process_fn` must be reachable by import: defined at the top level of `app.py`, not as a `lambda`,
   a closure, or inside the guard.
 - `gr.Progress`, `gr.Info` and `gr.Warning` are carried back out of the worker, so they display just
-  as they would otherwise. The one exception is `gr.Progress().tqdm(...)`, which is not forwarded;
-  call `progress(...)` directly instead.
+  as they would otherwise. The one exception is `gr.Progress().tqdm(...)`, which is not forwarded.
+  Call `progress(...)` directly instead.
+- A cancel stops only the caller's own job. HARP sends an id with every request, and a browser on
+  the Gradio page is matched on the session Gradio gives it, so neither can stop the other's work.
 - The headers of the request being served are carried into the worker, so a library that reads them
   from Gradio's request context still works. ZeroGPU is the one that matters: it takes the caller's
   token from those headers to decide whose GPU quota a job spends, and without them every job would
@@ -228,7 +240,7 @@ import gradio as gr
 if __name__ == "__main__":
     # Build the Gradio endpoint
     with gr.Blocks() as demo:
-        # Audio and MIDI components become tracks in HARP; everything else
+        # Audio and MIDI components become tracks in HARP. Everything else
         # becomes a GUI control. Order must match the process_fn signature.
         input_components = [
             gr.Audio(
@@ -269,6 +281,7 @@ A few requirements are easy to miss:
 - The order of `input_components` must match the arguments of `process_fn`, and the order of `output_components` must match its return values.
 - `demo.queue()` must be called, otherwise an ongoing job cannot be canceled from HARP.
 - `show_error=True` lets HARP report why a job failed ([see below](#error-reporting)).
+- Tracks and generic files can go in either position, but a GUI control is an input only and a `gr.JSON` of labels is an output only. `build_endpoint` refuses the other arrangement, since HARP has no matching component. Carry anything else as a generic `gr.File`.
 
 Audio and File components accept two PyHARP extensions: `.harp_required(False)` marks an input as optional, and `.set_info("...")` attaches instructions for HARP to display. Both of these extensions are shown in our [UI tester](examples/ui_tester/app.py). Note that only track and generic file inputs can be made optional. GUI controls always carry a value.
 
@@ -460,7 +473,7 @@ git push -u origin main
 
      Place all of the required **pip** packages in this file. It should also include the latest version of `pyharp`:
      ```
-     git+https://github.com/TEAMuP-dev/pyharp.git@v0.3.1
+     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.0
      ```
      Note that you do not have to include the `gradio` package in this file.
 
@@ -502,7 +515,7 @@ git push -u origin main
      The frontend environment, which needs only `gradio` and `pyharp`:
      ```
      gradio==6.24.0
-     git+https://github.com/TEAMuP-dev/pyharp.git@v0.3.1
+     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.0
      ```
 
    - `requirements-backend.txt`
@@ -576,7 +589,7 @@ git push -u origin main
 
 
      def process_fn(input_audio_path: str) -> str:
-         # Nothing here imports the model; it only ever runs in the backend environment
+         # Nothing here imports the model. It only ever runs in the backend environment
          result = call_backend(input_audio_path)
 
          ... # Turn the result into the output
@@ -685,7 +698,7 @@ remote: Please use https://huggingface.co/docs/hub/xet to store binary files.
 Despite what that message points at, the mechanism is still [Git LFS](https://git-lfs.com/). A binary
 file has to be committed as an LFS pointer, and `.gitattributes` is what decides that.
 [Xet](https://huggingface.co/docs/hub/xet/index) is the Hub's storage backend for those pointers, and
-`git-xet` is an optional LFS *transfer agent* that uploads them faster — it registers itself under
+`git-xet` is an optional LFS *transfer agent* that uploads them faster. It registers itself under
 `lfs.customtransfer.xet` and changes nothing about what gets committed. Installing it does not fix
 this error, and not installing it does not cause it.
 
@@ -710,7 +723,7 @@ git lfs migrate import --include="*.wav,*.mid" --everything
 git push
 ```
 
-To confirm a file is a pointer before pushing, check its size in Git — a pointer is a couple of
+To confirm a file is a pointer before pushing, check its size in Git. A pointer is a couple of
 hundred bytes, whatever the file weighs on disk:
 
 ```bash

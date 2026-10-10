@@ -62,7 +62,7 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
 if __name__ == "__main__":
     # Build the Gradio endpoint
     with gr.Blocks() as demo:
-        # Audio and MIDI components become tracks in HARP; everything else
+        # Audio and MIDI components become tracks in HARP. Everything else
         # becomes a GUI control. Order must match the process_fn signature.
         input_components = [
             gr.Audio(

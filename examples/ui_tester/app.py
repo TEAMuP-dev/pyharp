@@ -165,10 +165,10 @@ def process_fn(
         input_midi_path (Optional[str]): MIDI track, or None if left empty.
         input_file_path (Optional[str]): Generic file, or None if left empty.
         processing_delay (float): Seconds to sleep, to test HARP's cancel button.
-        gain (float): Unused; demonstrates a fractional slider.
-        repetitions (float): Unused; demonstrates a number box.
-        mode (str): Unused; demonstrates a dropdown.
-        effects (list): Unused; demonstrates a multiple-selection dropdown.
+        gain (float): Unused. Demonstrates a fractional slider.
+        repetitions (float): Unused. Demonstrates a number box.
+        mode (str): Unused. Demonstrates a dropdown.
+        effects (list): Unused. Demonstrates a multiple-selection dropdown.
         enable_audio_labels (bool): Whether to emit labels over the audio.
         enable_midi_labels (bool): Whether to emit labels over the MIDI.
         text_prompt (str): Written to the output file when no input file is given.

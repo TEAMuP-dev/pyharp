@@ -2,12 +2,11 @@ from gradio.components.base import Component
 from gradio_client.utils import is_valid_file
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import inspect
 import gradio as gr
 import functools
-import inspect
 
 from .tags import INPUT_KEY, OUTPUT_KEY, Modality, Tag, build_tags, io_tag
 
@@ -48,8 +47,9 @@ class ModelCard:
 
 @dataclass
 class HarpComponent:
-    label: str
-    info: str
+    # Both are unset on a Gradio component that was given neither
+    label: Optional[str]
+    info: Optional[str]
 
 @dataclass
 class HarpFileBasedComponent(HarpComponent):
@@ -58,10 +58,12 @@ class HarpFileBasedComponent(HarpComponent):
 
 @dataclass
 class HarpRangeComponent(HarpComponent):
-    minimum: float
-    maximum: float
-    step: float
-    value: float
+    # A gr.Number carries no bounds unless it is given them, so these can be unset. HARP
+    # substitutes a wide range for an unset bound.
+    minimum: Optional[float]
+    maximum: Optional[float]
+    step: Optional[float]
+    value: Optional[float]
 
 @dataclass
 class HarpAudioTrack(HarpFileBasedComponent):
@@ -86,7 +88,7 @@ class HarpNumberBox(HarpRangeComponent):
 
 @dataclass
 class HarpTextBox(HarpComponent):
-    value: str
+    value: Optional[str]
     type: str = "text_box"
 
 @dataclass
@@ -96,14 +98,21 @@ class HarpToggle(HarpComponent):
 
 @dataclass
 class HarpDropdown(HarpComponent):
-    choices: List[str]
-    value: Union[str, List[str]]
+    # Gradio normalizes choices to (label, value) pairs, and HARP reads them that way
+    choices: List[Tuple[str, Any]]
+    value: Union[str, List[str], None]
     multiselect: bool = False
     type: str = "dropdown"
 
 @dataclass
 class HarpJSON(HarpComponent):
     type: str = "json"
+
+# Components HARP renders as input controls, so it cannot place one as an output
+CONTROL_COMPONENTS = (HarpSlider, HarpNumberBox, HarpTextBox, HarpToggle, HarpDropdown)
+
+# Components HARP renders as output labels, so it cannot place one as an input
+LABEL_COMPONENTS = (HarpJSON,)
 
 # Kind of data each component carries (controls such as sliders carry none)
 MODALITIES = {
@@ -193,6 +202,41 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     raise ValueError(
         f"HARP does not support provided \'{gr_cmp}\' component. Please remove it or use an alternative."
     )
+
+def check_position(gr_cmp: Component, harp_cmp: HarpComponent, is_output: bool):
+    """
+    Check that HARP can render a component where it was placed.
+
+    HARP draws a track or a generic file in either position, a control as an input only,
+    and a gr.JSON of labels as an output only. A component in the other position loads as
+    an unsupported control, named by a type the app never wrote, so it is refused here
+    instead. Anything HARP has no component for can travel as a generic gr.File.
+
+    Args:
+        gr_cmp (Component): A Gradio input or output component.
+        harp_cmp (HarpComponent): The corresponding HarpComponent.
+        is_output (bool): Whether it is an output.
+
+    Raises:
+        ValueError: If HARP cannot render the component in that position.
+    """
+
+    name = f"gr.{type(gr_cmp).__name__}"
+
+    if is_output and isinstance(harp_cmp, CONTROL_COMPONENTS):
+        raise ValueError(
+            f"HARP renders {name} as an input control, so it cannot be an output. Write "
+            f"the value to a file and return that instead, through a gr.File output "
+            f"declaring the file_types it carries."
+        )
+
+    if not is_output and isinstance(harp_cmp, LABEL_COMPONENTS):
+        raise ValueError(
+            f"HARP renders {name} as output labels, so it cannot be an input. Take the "
+            f"data in as a file instead, through a gr.File input declaring the "
+            f"file_types it accepts."
+        )
+
 
 def get_modality(harp_cmp: HarpComponent) -> Optional[Modality]:
     """
@@ -309,6 +353,9 @@ def enforce_output_file_types(process_fn: callable, output_components: list) -> 
     if not any(isinstance(c, gr.File) and c.file_types for c in output_components):
         return process_fn
 
+    # build_endpoint turns both of the branches below away before they reach here, since
+    # the worker cannot run either (see pyharp.worker). They are kept so that this stays
+    # correct for any callable, rather than only for what build_endpoint allows through.
     if inspect.isgeneratorfunction(process_fn) or inspect.isasyncgenfunction(process_fn):
         # Outputs are streamed rather than returned, so there is no single result to check
         return process_fn
@@ -338,15 +385,17 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     Args:
         model_card (ModelCard): A ModelCard object describing the model.
         input_components (list): Gradio input widgets.
-            - It's crucial that the order of inputs matches the order in the Gradio
-              UI to ensure proper alignment when communicating with the HARP client.
-            - Currently, HARP supports gr.Audio, gr.File (MIDI or generic), gr.Slider,
-              gr.Checkbox, gr.Number, gr.Dropdown, and gr.Textbox widgets as inputs.
+            - The order must match the order of the arguments of process_fn, which is
+              also the order the Gradio UI shows.
+            - HARP supports gr.Audio, gr.File (MIDI or generic), gr.Slider, gr.Checkbox,
+              gr.Number, gr.Dropdown, and gr.Textbox as inputs. A gr.JSON is an output
+              only, and is refused here (see check_position).
         output_components (list): Gradio output widgets.
-            - It's crucial that the order of outputs matches the order in the Gradio
-              UI to ensure proper alignment when communicating with the HARP client.
-            - Currently, HARP supports gr.Audio, gr.File (MIDI or generic), and gr.JSON
-              widgets as outputs.
+            - The order must match the values process_fn returns, which is also the
+              order the Gradio UI shows.
+            - HARP supports gr.Audio, gr.File (MIDI or generic), and gr.JSON as outputs.
+              A control such as gr.Slider is an input only, and is refused here (see
+              check_position).
         process_fn (callable):
             - Function processing the inputs to generate the output.
             - The function must accept the inputs in the same order as the inputs list.
@@ -388,9 +437,33 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             4. A gr.Button to cancel processing.
     """
 
+    # A coroutine or generator returns an object rather than a value, which cannot be
+    # sent back from the worker process (see pyharp.worker). Saying so here beats the
+    # pickling error it would otherwise raise on the first request.
+    if inspect.iscoroutinefunction(process_fn):
+        raise ValueError(
+            "process_fn cannot be an async function, since it runs in a worker process. "
+            "Make it a regular function, awaiting anything it needs with asyncio.run."
+        )
+
+    if inspect.isgeneratorfunction(process_fn) or inspect.isasyncgenfunction(process_fn):
+        raise ValueError(
+            "process_fn cannot be a generator, since it runs in a worker process and has "
+            "to return its outputs rather than stream them. Return them once it is done, "
+            "and report progress with gr.Progress instead."
+        )
+
     # Convert Gradio components to simple control objects
     harp_inputs = [get_harp_component(gr_cmp) for gr_cmp in input_components]
     harp_outputs = [get_harp_component(gr_cmp) for gr_cmp in output_components]
+
+    # HARP supports a different set of components in each position, so each component is
+    # checked against its own position rather than against both
+    for gr_cmp, harp_cmp in zip(input_components, harp_inputs):
+        check_position(gr_cmp, harp_cmp, is_output=False)
+
+    for gr_cmp, harp_cmp in zip(output_components, harp_outputs):
+        check_position(gr_cmp, harp_cmp, is_output=True)
 
     # The card is sent with its tags, and those inferred for its inputs and outputs, flattened
     # into one list (see pyharp.tags)
@@ -457,7 +530,11 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         fn=enforce_output_file_types(supervised_process, output_components),
         inputs=input_components,
         outputs=output_components,
-        api_name="process"
+        api_name="process",
+        # One job at a time, which the supervisor depends on (see pyharp.worker). Set
+        # here rather than left to Gradio's default, which an app can raise through
+        # queue() or GRADIO_DEFAULT_CONCURRENCY_LIMIT.
+        concurrency_limit=1
     )
 
     # Create a button to cancel processing

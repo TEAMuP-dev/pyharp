@@ -146,7 +146,10 @@ Tag = Union[str, Category, Subcategory, SampleRate, Channels]
 def _check_unique_ids():
     ids = [c.id for c in Category] + [s.id for s in Subcategory]
     duplicates = {i for i in ids if ids.count(i) > 1}
-    assert not duplicates, f"Taxonomy ids must be unique, but {duplicates} repeat"
+
+    # Not an assert, which "python -O" would strip along with the invariant
+    if duplicates:
+        raise ValueError(f"Taxonomy ids must be unique, but {duplicates} repeat.")
 
 
 _check_unique_ids()

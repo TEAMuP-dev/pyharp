@@ -52,6 +52,19 @@ def sleep_ignoring_interrupts(seconds):
     return sleep_interruptibly(seconds)
 
 
+def sleep_dying_on_interrupt(seconds):
+    """
+    Ends outright on an interrupt, rather than unwinding.
+
+    The OS default for SIGINT terminates the process, so restoring it stands in for a
+    library that resets the handler, and for Windows, where os.kill terminates a process
+    whatever signal it is given.
+    """
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    return sleep_interruptibly(seconds)
+
+
 def spawn_child_then_sleep(marker_path, seconds):
     """
     Starts a grandchild process and waits on it, as a dual-environment app does.

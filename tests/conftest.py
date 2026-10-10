@@ -59,8 +59,12 @@ def serving_request():
 
     tokens = []
 
-    def serve(headers):
-        request = gr.Request(headers=headers) if headers is not None else None
+    def serve(headers, session_hash=None):
+        request = (
+            gr.Request(headers=headers, session_hash=session_hash)
+            if headers is not None
+            else None
+        )
         tokens.append(LocalContext.request.set(request))
 
         return request

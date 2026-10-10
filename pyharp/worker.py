@@ -32,7 +32,7 @@ _MP = mp.get_context("spawn")
 # Tells "no id was given" apart from "the caller has no id"
 _UNSET = object()
 
-# An HTTP caller that sends no id of its own, such as the Gradio page in a browser or a
+# An HTTP caller that carries neither an id of its own nor a Gradio session, such as a
 # HARP older than CLIENT_HEADER. One cannot be told apart from another, so a cancel from
 # one stops nothing and the job runs to completion in the background, which is how this
 # behaved before the worker existed.
@@ -110,12 +110,37 @@ def _capture_request():
 CLIENT_HEADER = "x-harp-client"
 
 
-def _client_id(headers):
+def _capture_session():
     """
-    Identifies the caller, from the headers _capture_request collected.
+    Takes the Gradio session hash of the request being served, if it has one.
+
+    A browser on the Gradio page sends no id of its own, but Gradio scopes a session to
+    the page, so its hash tells one visitor from another. Called in the server process,
+    where the request context exists.
+
+    Returns None where there is no request, or where it carries no session.
+    """
+    try:
+        from gradio.context import LocalContext
+
+        request = LocalContext.request.get(None)
+        session = getattr(request, "session_hash", None) if request is not None else None
+
+        return str(session) if session else None
+    except Exception:
+        return None
+
+
+def _client_id(headers, session=None):
+    """
+    Identifies the caller, from what _capture_request and _capture_session collected.
 
     Returns None where there was no request at all, which is a direct call rather than
-    one over HTTP, and _ANONYMOUS for a request carrying no id of its own.
+    one over HTTP, and _ANONYMOUS for a request carrying neither an id nor a session.
+
+    Args:
+        headers: The request headers, or None where there was no request.
+        session: The request's Gradio session hash, used where it carries no id.
     """
     if headers is None:
         return None
@@ -127,7 +152,8 @@ def _client_id(headers):
             if identifier:
                 return identifier
 
-    return _ANONYMOUS
+    # Namespaced, so that a session can never read as an id HARP sent
+    return f"session:{session}" if session else _ANONYMOUS
 
 
 def _restore_request(headers):
@@ -269,10 +295,11 @@ class JobSupervisor:
 
     One supervisor is shared by every caller of an endpoint, so a cancel is matched to
     the job it was meant for rather than stopping whatever is running (see cancel).
-    Starting a job is serialized by Gradio instead, whose concurrency_limit defaults to
-    1, so a second request waits its turn rather than preempting. Raising that limit,
-    whether on the event or through GRADIO_DEFAULT_CONCURRENCY_LIMIT, would let two jobs
-    reach one supervisor, which tracks a single job at a time.
+    Starting a job is serialized by Gradio instead, since build_endpoint gives the
+    process event a concurrency_limit of 1, so a second request waits its turn rather
+    than preempting. That limit is set there rather than left to Gradio's default, which
+    an app can raise through queue() or GRADIO_DEFAULT_CONCURRENCY_LIMIT. Two jobs
+    reaching one supervisor would break this, as it tracks a single job at a time.
     """
 
     def __init__(self, timeout_s=900):
@@ -289,7 +316,7 @@ class JobSupervisor:
     def run(self, fn, *args, progress=None):
         # Taken before anything else, while the request being served is still in context
         headers = _capture_request()
-        client = _client_id(headers)
+        client = _client_id(headers, _capture_session())
 
         # Single-flight: one job at a time, so a new request from the same caller stops
         # whatever they had running rather than running beside it. Gradio's queue already
@@ -331,20 +358,20 @@ class JobSupervisor:
         Stops the running job, if it belongs to the caller.
 
         One supervisor serves every visitor, so a cancel has to be matched to its own
-        job. Gradio matches on the caller's session, but HARP reaches the endpoints over
-        the API, where every call is a fresh session, so the match is made on the id HARP
-        sends instead (see CLIENT_HEADER).
+        job. HARP reaches the endpoints over the API, where every call is a fresh Gradio
+        session, so it sends an id of its own and the match is made on that (see
+        CLIENT_HEADER). A browser on the Gradio page sends no id, and is matched on its
+        session hash instead, so the Cancel button on that page stops its own job.
 
-        A caller that sends no id cannot be matched, so nothing is stopped and the work
+        A caller carrying neither cannot be matched, so nothing is stopped and the work
         runs to completion in the background. That was the behavior before the worker
-        existed, so an older HARP and the Gradio page lose nothing and cannot reach
-        another caller's job.
+        existed, so an older HARP loses nothing and cannot reach another caller's job.
 
         Args:
             client: The caller's id. Read from the request being served when omitted.
         """
         if client is _UNSET:
-            client = _client_id(_capture_request())
+            client = _client_id(_capture_request(), _capture_session())
 
         with self._lock:
             if not self._busy or self._worker is None or not self._worker.is_alive():
@@ -370,16 +397,17 @@ class JobSupervisor:
             return
 
         with self._lock:
-            if self._worker is not worker or not worker.is_alive():
-                return
-
             # The job ended during the grace period and another has taken its place,
             # which this cancel has no claim on
-            if self._job_id != job_id:
+            if self._worker is not worker or self._job_id != job_id:
                 return
 
-            # Stuck somewhere that will not accept an interrupt, so nothing short of
-            # ending the process will stop it
+            # Either the job is stuck somewhere that will not accept an interrupt, or
+            # the interrupt ended the worker rather than unwinding it. The second
+            # happens where a job restored the default handler, and on Windows, where
+            # os.kill terminates a process whatever signal it is given. Neither reports
+            # an outcome, so it is posted here. Checking that the worker is still alive
+            # would skip the second case and leave the request to report a crash.
             self._discard_worker("canceled", results_q, job_id)
 
         # Reload while the user decides what to do next, rather than on their next request

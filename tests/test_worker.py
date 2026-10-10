@@ -3,8 +3,8 @@ Tests for running process_fn in a worker process.
 
 The behavior under test is mostly about what happens when things go wrong -
 cancellation, timeouts, crashes - so most of these drive a failure deliberately and
-assert on how it is reported. Each one keeps its own timings short; nothing here
-should take more than a few seconds.
+assert on how it is reported. Each one keeps its own timings short, so nothing
+here should take more than a few seconds.
 """
 
 import contextvars
@@ -171,6 +171,28 @@ def test_cancel_replaces_a_worker_that_ignores_interrupts(supervisor, progress):
     assert sup.run(jobs.identify, progress=progress)["worker_id"] != warm["worker_id"]
 
 
+def test_cancel_is_reported_as_one_when_the_interrupt_ends_the_worker(supervisor, progress):
+    """
+    The interrupt does not always unwind the job. It ends the worker where the job reset
+    the handler, and on Windows always. The outcome is unreported either way, so without
+    the cancel posting one, the request waits out the result grace period and then
+    reports the crash it looks like.
+    """
+    sup = supervisor(timeout_s=60)
+
+    cancel_after(sup, 1)
+    started = time.monotonic()
+
+    with pytest.raises(gr.Error) as raised:
+        sup.run(jobs.sleep_dying_on_interrupt, 60, progress=progress)
+
+    assert raised.value.message == "Job canceled."
+    assert time.monotonic() - started < 8
+
+    # Nothing survived the kill, so the next job gets a fresh worker
+    assert sup.run(jobs.identify, progress=progress)["pid"] != os.getpid()
+
+
 def test_cancel_while_idle_does_nothing(supervisor, progress):
     sup = supervisor()
 
@@ -191,8 +213,6 @@ def test_starting_a_job_stops_the_previous_one(supervisor, progress):
             outcome["result"] = sup.run(jobs.sleep_interruptibly, 60, progress=progress)
         except gr.Error as error:
             outcome["error"] = error.message
-
-    import threading
 
     slow = threading.Thread(target=run_slow, daemon=True)
     slow.start()
@@ -366,6 +386,65 @@ def test_an_unidentified_cancel_cannot_stop_an_identified_job(supervisor, progre
     time.sleep(7)
 
     serving_request({"user-agent": "a browser"})
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("result") == "finished", outcome
+
+
+def test_a_cancel_from_the_same_browser_session_stops_the_job(supervisor, progress,
+                                                              serving_request):
+    """
+    The Gradio page sends no id of its own, so the Cancel button on it is matched on the
+    session Gradio gives the page.
+    """
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"user-agent": "a browser"}, session_hash="session-1")
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"user-agent": "a browser"}, session_hash="session-1")
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("error") == "Job canceled.", outcome
+
+
+def test_a_cancel_from_another_browser_session_is_ignored(supervisor, progress,
+                                                          serving_request):
+    """One visitor to the Gradio page must not stop another visitor's job."""
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"user-agent": "a browser"}, session_hash="session-1")
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"user-agent": "a browser"}, session_hash="session-2")
+    sup.cancel()
+
+    thread.join(timeout=40)
+
+    assert outcome.get("result") == "finished", outcome
+
+
+def test_a_session_cannot_stop_a_job_harp_started(supervisor, progress, serving_request):
+    """The id HARP sends is matched first, so a session can never collide with one."""
+    sup = supervisor()
+    outcome = {}
+
+    serving_request({"x-harp-client": "tab-1"}, session_hash="tab-1")
+    thread = _run_in_background(sup, outcome, progress)
+
+    time.sleep(7)
+
+    serving_request({"user-agent": "a browser"}, session_hash="tab-1")
     sup.cancel()
 
     thread.join(timeout=40)
