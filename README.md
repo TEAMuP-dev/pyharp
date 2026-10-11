@@ -17,6 +17,7 @@ This README documents how to build a PyHARP app. HARP's [deployment guidelines](
     * **[Gradio Endpoint](#gradio-endpoint)**
         * **[Error Reporting](#error-reporting)**
     * **[MIDI Inputs & Outputs](#midi-inputs--outputs)**
+    * **[Text Inputs & Outputs](#text-inputs--outputs)**
     * **[Output Labels](#output-labels)**
     * **[Examples](#examples)**
 * **[Hosting Endpoints](#hosting-endpoints)**
@@ -90,17 +91,17 @@ The taxonomy is defined in [`taxonomy.json`](pyharp/taxonomy.json), shared by HA
 - **Analysis** (`Category.ANALYSIS`): `MUSIC_ANALYSIS`, `SPEECH_ANALYSIS`, `GENERAL_AUDIO_ANALYSIS`
 - **Utility** (`Category.UTILITY`): no subcategories. Marks a tool rather than an AI model, _e.g._, a DSP effect or a test app.
 
-Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as `input:` and `output:` tags naming the kinds of data it handles: `audio`, `midi`, `file` (a generic file), `text` (an input only), or `labels` (an output only). Components that would produce the same tag are tagged once, so two audio inputs give a single `input:audio`.
+Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as `input:` and `output:` tags naming the kinds of data it handles: `audio`, `midi`, `text`, `file` (a generic file), or `labels` (an output only). Components that would produce the same tag are tagged once, so two audio inputs give a single `input:audio`.
 
 A component's restricted formats follow its tag after a `/`, separated by `|`, _e.g._, `output:audio/wav` or `input:file/json|txt`:
 
 - **`gr.Audio` output**: its `format` (`"wav"` or `"mp3"`), to which Gradio converts the returned audio.
 - **Generic `gr.File` input**: its `file_types` (_e.g._, `[".nam"]`). Gradio rejects any other file.
-- **Generic `gr.File` output**: its `file_types` (_e.g._, `[".json", ".txt"]`). pyharp raises an error if `process_fn` returns any other file.
+- **Generic `gr.File` output**: its `file_types` (_e.g._, `[".json", ".csv"]`). pyharp raises an error if `process_fn` returns any other file.
 
 Set `format` on a `gr.Audio` output only where the model fixes its output format (see our [MIDI synthesizer](examples/midi_synthesizer/app.py) example). Leaving it unset returns whatever `process_fn` wrote, which is what lets a model preserve the format it was given (see our [pitch shifter](examples/pitch_shifter/app.py) example).
 
-Other components are tagged without a format. A `gr.Audio` input accepts any audio, since its `format` only sets the format to which Gradio converts it before `process_fn` receives it, and MIDI needs no format beyond `input:midi` or `output:midi`.
+Other components are tagged without a format. A `gr.Audio` input accepts any audio, since its `format` only sets the format to which Gradio converts it before `process_fn` receives it, and MIDI and text need no format beyond `input:midi`, `output:midi`, `input:text` or `output:text`, their one extension being implied.
 
 A model's sample rate and channels cannot be inferred, as Gradio components do not declare them, so `SampleRate` and `Channels` are listed by hand, if at all.
 
@@ -225,7 +226,7 @@ If you want to build an endpoint that utilizes a pre-trained model, we recommend
 HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#model-weights) cover the other options, including storage buckets for very large weight sets.
 
 ## Gradio Endpoint
-The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a `gr.File` adds `input:midi` or `output:midi` where it declares MIDI file types and `input:file` or `output:file` otherwise, a `gr.Textbox` adds `input:text`, and a `gr.JSON` carrying labels adds `output:labels`.
+The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a `gr.File` adds `input:midi` or `output:midi` where it declares MIDI file types, `input:text` or `output:text` where it declares `.txt` alone, and `input:file` or `output:file` otherwise, a `gr.Textbox` adds `input:text`, and a `gr.JSON` carrying labels adds `output:labels`.
 
 The Gradio page also carries HARP's own widgets. The "View Controls" button and the JSON box of control data exist only so that HARP can read the model's interface, so they are hidden by default. Pass `show_controls=True` to `build_endpoint` if you want to inspect them. The "Process" and "Cancel" buttons are always shown, since they are useful to someone running the model from the page directly. HARP is unaffected either way, since it calls the endpoints rather than clicking the buttons.
 
@@ -281,7 +282,7 @@ A few requirements are easy to miss:
 - The order of `input_components` must match the arguments of `process_fn`, and the order of `output_components` must match its return values.
 - `demo.queue()` must be called, otherwise an ongoing job cannot be canceled from HARP.
 - `show_error=True` lets HARP report why a job failed ([see below](#error-reporting)).
-- Tracks and generic files can go in either position, but a GUI control is an input only and a `gr.JSON` of labels is an output only. `build_endpoint` refuses the other arrangement, since HARP has no matching component. Carry anything else as a generic `gr.File`.
+- Tracks (audio, MIDI, and text) and generic files can go in either position, but a GUI control is an input only and a `gr.JSON` of labels is an output only. `build_endpoint` refuses the other arrangement, since HARP has no matching component. A model that returns text returns a `.txt` file ([see below](#text-inputs--outputs)), not a `gr.Textbox`, and carries anything else as a generic `gr.File`.
 
 Audio and File components accept two PyHARP extensions: `.harp_required(False)` marks an input as optional, and `.set_info("...")` attaches instructions for HARP to display. Both of these extensions are shown in our [UI tester](examples/ui_tester/app.py). Note that only track and generic file inputs can be made optional. GUI controls always carry a value.
 
@@ -346,6 +347,44 @@ if __name__ == "__main__":
 ```
 
 Note that by default PyHARP uses the [symusic](https://github.com/Yikai-Liao/symusic) package to load and save MIDI, but any standard method will work.
+
+## Text Inputs & Outputs
+A `gr.File` that sets `type="filepath"` and `file_types=[".txt"]` becomes a **text track** in HARP, shown as editable text rather than a file to download. It tags the model with `input:text` or `output:text`.
+
+This is how a model returns text. A `gr.Textbox` is a GUI control, so it can only be an input, and `build_endpoint` refuses one as an output. Writing the text to a `.txt` file and returning its path is what puts it in front of the user:
+
+```python
+def process_fn(input_audio_path, ...):
+    ...
+
+    output_text_path = str(Path(tempfile.mkdtemp()) / "transcript.txt")
+
+    with open(output_text_path, "w", encoding="utf-8") as stream:
+        stream.write(transcript)
+
+    return output_text_path
+
+
+if __name__ == "__main__":
+    with gr.Blocks() as demo:
+        input_components = [
+            gr.Audio(type="filepath", label="Input Audio"),
+            ...
+        ]
+
+        # A gr.File restricted to .txt becomes a text track in HARP
+        output_components = [
+            gr.File(
+                type="filepath",
+                label="Transcript",
+                file_types=[".txt"]
+            ).set_info("The transcribed speech.")
+        ]
+
+        ...
+```
+
+A component offering `.txt` among several formats stays a generic file picker, since it is not text in particular that it carries.
 
 ## Output Labels
 In order to display output labels in HARP (which also tags the model with `output:labels`), you must define an output [JSON](https://www.gradio.app/docs/gradio/json) component and return our custom `LabelList` object in `process_fn`:

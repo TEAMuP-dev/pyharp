@@ -123,7 +123,7 @@ MODALITIES = {
     HarpAudioTrack: Modality.AUDIO,
     HarpMidiTrack: Modality.MIDI,
     HarpFileComponent: Modality.FILE,
-    HarpTextTrack: Modality.FILE,
+    HarpTextTrack: Modality.TEXT,
     HarpTextBox: Modality.TEXT,
     HarpJSON: Modality.LABELS
 }
@@ -165,8 +165,11 @@ def is_midi_file(gr_cmp: Component) -> bool:
 
 def is_text_file(gr_cmp: Component) -> bool:
     """
-    Whether a Gradio component is a gr.File accepting text, which HARP treats as a text
+    Whether a Gradio component is a gr.File accepting only text, which HARP shows as a text
     track rather than a generic file.
+
+    The match is exclusive, unlike is_midi_file: a component offering .txt among several
+    formats is a generic file picker, since it is not text in particular that it carries.
 
     Args:
         gr_cmp (Component): A Gradio component.
@@ -175,8 +178,10 @@ def is_text_file(gr_cmp: Component) -> bool:
         is_text (bool): Whether it is a text file.
     """
 
-    return (isinstance(gr_cmp, gr.File) and gr_cmp.file_types is not None
-            and '.txt' in gr_cmp.file_types)
+    if not (isinstance(gr_cmp, gr.File) and gr_cmp.file_types):
+        return False
+
+    return {t.lower() for t in gr_cmp.file_types} == {'.txt'}
 
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
@@ -282,7 +287,8 @@ def get_declared_formats(gr_cmp: Component, is_output: bool) -> List[str]:
     pyharp enforces for an output (see enforce_output_file_types). A gr.Audio output is
     restricted to its format, to which Gradio converts the returned audio. A gr.Audio input
     is not restricted, since its format only sets how Gradio converts incoming audio. A MIDI
-    file is not described by format.
+    or text file is not described by format, since its one extension is implied by its
+    modality.
 
     Args:
         gr_cmp (Component): A Gradio input or output component.
@@ -295,7 +301,7 @@ def get_declared_formats(gr_cmp: Component, is_output: bool) -> List[str]:
     if isinstance(gr_cmp, gr.Audio):
         return [gr_cmp.format] if is_output and gr_cmp.format else []
 
-    if isinstance(gr_cmp, gr.File) and not is_midi_file(gr_cmp):
+    if isinstance(gr_cmp, gr.File) and not is_midi_file(gr_cmp) and not is_text_file(gr_cmp):
         # File types can also be categories such as "audio", which name no single format
         return [t for t in (gr_cmp.file_types or []) if t.startswith(".")]
 

@@ -148,6 +148,7 @@ def process_fn(
     input_audio_path: Optional[str],
     input_midi_path: Optional[str],
     input_file_path: Optional[str],
+    input_text_path: Optional[str],
     processing_delay: float,
     gain: float,
     repetitions: float,
@@ -156,7 +157,7 @@ def process_fn(
     enable_audio_labels: bool,
     enable_midi_labels: bool,
     text_prompt: str
-) -> Tuple[str, str, LabelList, str]:
+) -> Tuple[str, str, LabelList, str, str]:
     """
     Pass the input tracks through and annotate them with output labels.
 
@@ -164,6 +165,7 @@ def process_fn(
         input_audio_path (Optional[str]): Audio track, or None if left empty.
         input_midi_path (Optional[str]): MIDI track, or None if left empty.
         input_file_path (Optional[str]): Generic file, or None if left empty.
+        input_text_path (Optional[str]): Text track, or None if left empty.
         processing_delay (float): Seconds to sleep, to test HARP's cancel button.
         gain (float): Unused. Demonstrates a fractional slider.
         repetitions (float): Unused. Demonstrates a number box.
@@ -178,6 +180,7 @@ def process_fn(
         output_midi_path (str): Path to the output MIDI.
         output_labels (LabelList): Labels drawn over the output tracks.
         output_file_path (str): Path to the generic output file.
+        output_text_path (str): Path to the output text track.
     """
 
     if input_audio_path is None:
@@ -201,6 +204,20 @@ def process_fn(
             f.write(f"text_prompt: {text_prompt}\n")
     else:
         output_file_path = input_file_path
+
+    # A text track arrives as a .txt path, like any other track, and is echoed
+    # back. When none is provided, the text prompt is written instead, so the
+    # output track is populated either way.
+    output_text_path = get_default_path(".txt")
+
+    if input_text_path is None:
+        text = f"text_prompt: {text_prompt}\n"
+    else:
+        with open(input_text_path, encoding="utf-8") as f:
+            text = f.read()
+
+    with open(output_text_path, "w", encoding="utf-8") as f:
+        f.write(text)
 
     # Echo the control values so they can be read back in HARP
     descriptions = {
@@ -227,16 +244,18 @@ def process_fn(
     # Stall so that HARP's cancel button and status area can be exercised
     time.sleep(float(processing_delay))
 
-    return output_audio_path, output_midi_path, output_labels, output_file_path
+    return (output_audio_path, output_midi_path, output_labels,
+            output_file_path, output_text_path)
 
 
 # The processing worker imports this file, so the app must not be built there
 if __name__ == "__main__":
     # Build the Gradio endpoint
     with gr.Blocks() as demo:
-        # Audio and MIDI components become tracks in HARP. A gr.File with any
-        # other extension becomes a GUI file picker instead. Every input here is
-        # optional, so the app can be run without loading anything.
+        # Audio, MIDI, and text-only components become tracks in HARP. A gr.File
+        # listing any other extension, or several, becomes a file picker instead.
+        # Every input here is optional, so the app can be run without loading
+        # anything.
         # Order must match the process_fn signature.
         input_components = [
             gr.Audio(
@@ -259,6 +278,13 @@ if __name__ == "__main__":
             )
             .harp_required(False)
             .set_info("A generic file. HARP shows this as a file picker, not a track."),
+            gr.File(
+                type="filepath",
+                label="Input Text",
+                file_types=[".txt"]
+            )
+            .harp_required(False)
+            .set_info("A text track. The text prompt is used if empty."),
             gr.Slider(
                 minimum=0,
                 maximum=60,
@@ -332,6 +358,11 @@ if __name__ == "__main__":
                 type="filepath",
                 label="Output File"
             ).set_info("A generic file output."),
+            gr.File(
+                type="filepath",
+                label="Output Text",
+                file_types=[".txt"]
+            ).set_info("The input text, unchanged, or the text prompt."),
         ]
 
         app = build_endpoint(
