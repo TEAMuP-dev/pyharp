@@ -472,3 +472,12 @@ def test_an_unidentified_cancel_stops_nothing(supervisor, progress, serving_requ
     thread.join(timeout=40)
 
     assert outcome.get("result") == "finished", outcome
+
+
+def test_the_worker_can_start_children(supervisor, progress):
+    """
+    `@spaces.GPU` forks a worker of its own to hold the GPU once its scheduling
+    call succeeds, but this fails on a daemonic worker.
+    """
+
+    assert supervisor().run(jobs.forks_a_child, progress=progress) == "forked"

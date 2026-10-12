@@ -10,6 +10,7 @@ whatever the app loaded on the way to process_fn is not paid for again on every 
 Only JobSupervisor is used elsewhere. Everything else here supports it.
 """
 
+import atexit
 import multiprocessing as mp
 import os
 import queue
@@ -421,13 +422,26 @@ class JobSupervisor:
         self._jobs_q = _MP.Queue()
         self._results_q = _MP.Queue()
         self._job_done = _MP.Event()
+        # Not a daemon, deliberately. A daemon process cannot start children,
+        # and ZeroGPU's @spaces.GPU forks a worker of its own to hold the GPU
+        # once its scheduling call succeeds, so a daemonic worker turns every
+        # request on ZeroGPU hardware into
+        #     AssertionError: daemonic processes are not allowed to have children
+        # which reads as a crash in the model, and which only appears once GPU
+        # allowance is available, so it hides behind quota errors.
+        #
+        # Nothing is lost by dropping it: the worker leads its own process group
+        # and _end_process kills that group, which cancellation and timeouts
+        # already rely on, and _close_at_exit covers an interpreter that exits
+        # without going through either.
         self._worker = _MP.Process(
             target=_worker_loop,
             args=(self._jobs_q, self._results_q, self._job_done),
-            daemon=True,
+            daemon=False,
         )
 
         self._worker.start()
+        atexit.register(self._close_at_exit, self._worker)
 
         return self._worker, self._jobs_q, self._results_q, self._job_done
 
@@ -446,6 +460,17 @@ class JobSupervisor:
         self._jobs_q = None
         self._results_q = None
         self._job_done = None
+
+    @staticmethod
+    def _close_at_exit(worker):
+        """Ends a worker the interpreter is exiting on.
+
+        A daemonic worker would have been killed. This replaces that one guarantee,
+        so dropping `daemon` leaves no orphan behind.
+        """
+
+        if worker.is_alive():
+            JobSupervisor._end_process(worker)
 
     @staticmethod
     def _end_process(worker):

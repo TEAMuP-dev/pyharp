@@ -126,3 +126,18 @@ def report_request_headers():
 def exit_abruptly():
     """Stands in for an out-of-memory kill: the process dies without reporting."""
     os._exit(1)
+
+
+def forks_a_child():
+    """Starts a child process, which a daemonic worker cannot do.
+
+    ZeroGPU's @spaces.GPU forks a worker of its own to hold the GPU, so this is
+    what every request on ZeroGPU hardware asks of the worker.
+    """
+    import multiprocessing
+
+    child = multiprocessing.get_context("fork").Process(target=print)
+    child.start()
+    child.join()
+
+    return "forked"
