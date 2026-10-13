@@ -18,7 +18,10 @@ import torch
 model_card = ModelCard(
     name="Pitch Shifter",
     author="TEAMuP",
-    description="A pitch shifting example for HARP v3.",
+    description=(
+        "Shifts the pitch of an audio file by a number of semitones, without changing its "
+        "length."
+    ),
     tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 

@@ -14,7 +14,10 @@ import gradio as gr
 model_card = ModelCard(
     name="MIDI Pitch Shifter",
     author="TEAMuP",
-    description="A MIDI pitch shifting example for HARP v3.",
+    description=(
+        "Transposes every note in a MIDI file by a number of semitones, leaving its timing and "
+        "instrumentation unchanged."
+    ),
     tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 

@@ -36,11 +36,10 @@ model_card = ModelCard(
     name="UI Tester",
     author="TEAMuP",
     description=(
-        "Exercises every input control, track type, and output label type "
-        "supported by HARP. No real processing is performed: input tracks are "
-        "passed through unchanged, and bundled reference media is substituted for any "
-        "track left empty, so the app can be run without loading anything. "
-        "The control values are echoed into the output label descriptions."
+        "Exercises every input control, track type, and output label type supported by HARP. No "
+        "real processing is performed: input tracks are passed through unchanged, and bundled "
+        "reference media is substituted for any track left empty, so the app can be run without "
+        "loading anything. The control values are echoed into the output label descriptions."
     ),
     tags=[Category.UTILITY, "example", "test"],
 )
