@@ -1,6 +1,6 @@
 [![HARP](https://gh-card.dev/repos/TEAMuP-dev/HARP.svg)](https://github.com/TEAMuP-dev/HARP)
 
-PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP), an application which enables the seamless integration of machine learning models into Digital Audio Workstations (DAWs). This repository provides a lightweight wrapper to embed **arbitrary Python code** for audio processing into [Gradio](https://www.gradio.app) endpoints accessible through HARP. In this way, HARP supports offline remote processing with algorithms or models that may be too resource-hungry to run on common hardware. HARP can be run as a standalone or from within DAWs that support external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro X](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). Please see [our website](https://harp3.netlify.app/content/supported_os.html) for more information and instructions on how to install and run HARP with various operating systems and DAWs.
+PyHARP is a **companion package** for [HARP](https://github.com/TEAMuP-dev/HARP), an application which enables the seamless integration of machine learning models into Digital Audio Workstations (DAWs). This repository provides a lightweight wrapper to embed **arbitrary Python code** for audio processing into [Gradio](https://www.gradio.app) endpoints accessible through HARP. In this way, HARP supports offline remote processing with algorithms or models that may be too resource-hungry to run on common hardware. HARP can be run as a standalone or from within DAWs that support external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). Please see [our website](https://harp3.netlify.app/content/supported_os.html) for more information and instructions on how to install and run HARP with various operating systems and DAWs.
 
 This README documents how to build a PyHARP app. HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md) are the conventions our models follow, and cover what to decide while building one: licensing, naming and tagging a model, sourcing weights, reporting errors, preserving the input format, and choosing hardware.
 
@@ -66,7 +66,10 @@ from pyharp import ModelCard, Category
 model_card = ModelCard(
     name="Pitch Shifter",
     author="TEAMuP",
-    description="A pitch shifting example for HARP v3.",
+    description=(
+        "Shifts the pitch of an audio file by a number of semitones, without changing its "
+        "length."
+    ),
     tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
 ```
@@ -472,8 +475,10 @@ git push -u origin main
 
      Place all of the required **pip** packages in this file. It should also include the latest version of `pyharp`:
      ```
-     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.0
+     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.1
      ```
+     A tag moves if a release is ever corrected, and pip can go on serving the wheel it already built for that URL, through later rebuilds and factory reboots alike. Pin the commit the tag names wherever that matters, since a commit cannot move.
+
      Note that you do not have to include the `gradio` package in this file.
 
    - `packages.txt`
@@ -514,7 +519,7 @@ git push -u origin main
      The frontend environment, which needs only `gradio` and `pyharp`:
      ```
      gradio==6.24.0
-     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.0
+     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.1
      ```
 
    - `requirements-backend.txt`
@@ -786,7 +791,7 @@ HARP's Home tab lists every Space of the [TEAMuP organization](https://huggingfa
 
 For our [pitch shifter](examples/pitch_shifter/README.md) example, these are:
 ```yaml
-short_description: A pitch shifting example for HARP v3.
+short_description: Shifts the pitch of an audio track.
 tags:
   - category:effects
   - category:utility

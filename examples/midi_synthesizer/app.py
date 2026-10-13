@@ -29,7 +29,7 @@ synthesizer = Synthesizer(
 model_card = ModelCard(
     name="MIDI Synthesizer",
     author="TEAMuP",
-    description="A MIDI synthesizer example for HARP v3.",
+    description="Renders a MIDI file into stereo audio with the MuseScore General soundfont.",
     tags=[
         Subcategory.INSTRUMENT_SYNTHESIS,
         Category.UTILITY,

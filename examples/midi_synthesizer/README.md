@@ -8,7 +8,7 @@ sdk_version: 6.24.0
 app_file: app.py
 pinned: false
 license: mit
-short_description: A MIDI synthesizer example for HARP v3.
+short_description: Renders a MIDI track to audio with a soundfont.
 tags:
   - category:synthesis
   - subcategory:instrument-synthesis
