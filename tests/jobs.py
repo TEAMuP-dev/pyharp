@@ -141,3 +141,14 @@ def forks_a_child():
     child.join()
 
     return "forked"
+
+
+def write_temporary_output(_=None):
+    """Returns a file under the kind of throwaway name many apps give their results."""
+    import tempfile
+
+    handle, path = tempfile.mkstemp(suffix=".wav")
+    os.write(handle, b"data")
+    os.close(handle)
+
+    return path

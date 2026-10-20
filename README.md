@@ -16,6 +16,7 @@ This README documents how to build a PyHARP app. HARP's [deployment guidelines](
     * **[Pre-Trained Models](#pre-trained-models)**
     * **[Gradio Endpoint](#gradio-endpoint)**
         * **[Error Reporting](#error-reporting)**
+        * **[Output File Names](#output-file-names)**
     * **[MIDI Inputs & Outputs](#midi-inputs--outputs)**
     * **[Output Labels](#output-labels)**
     * **[Examples](#examples)**
@@ -181,7 +182,10 @@ legitimately run longer. One job runs at a time, which `build_endpoint` enforces
 process event a `concurrency_limit` of `1`, and starting a new job stops whatever was running.
 
 The worker is **reused between requests**, so whatever your `app.py` loads on the way to `process_fn`
-is loaded once rather than once per job. Canceling interrupts the job where it stands and keeps the
+is loaded once rather than once per job. It starts as soon as `build_endpoint` is called, so that
+loading happens while the server comes up rather than during the first request, which on ZeroGPU
+could otherwise outlast the request's token. Pass `warm_start=False` to start it on the first
+request instead. Canceling interrupts the job where it stands and keeps the
 worker, models included. Only a job stuck inside a library call that refuses to be interrupted costs a
 restart, and a replacement worker starts loading immediately, so it is usually ready again before the
 next request.
@@ -299,6 +303,11 @@ if signal.sample_rate != 44100:
 ```
 
 Note that `gr.Info` and `gr.Warning` never reach HARP. Gradio does not forward them on the endpoint HARP uses, so they appear only on the Gradio page.
+
+### Output File Names
+HARP shows each result under its file name, its media clipboard included, where results from many runs and models sit side by side. `build_endpoint` therefore renames every file `process_fn` returns after what it is, as `<input>_<model>_<output>` with the file's own extension: the stem of the first file input, the model card's name, and the output component's label. Separating `song.wav` with Open-Unmix gives `song_open-unmix_vocals.wav`, and a model without a file input leaves out the first part, so MusicGen gives `musicgen_generated-audio.wav`.
+
+The label is what names a result, so give each output component a label that says what it holds. Only returned file paths are renamed, so return audio as a file rather than as an array, which Gradio would name `audio.wav`. Likewise, return a `gr.Audio` output in the `format` it declares, since Gradio converts a file in any other format and names the conversion `audio.<format>`. Pass `name_outputs=False` to keep the names `process_fn` gives.
 
 ## MIDI Inputs & Outputs
 PyHARP supports MIDI inputs and outputs through Gradio's [File](https://www.gradio.app/docs/gradio/file) component. As with `gr.Audio`, each `gr.File` representing MIDI must set `type="filepath"`, and must also specify `file_types=[".mid", ".midi"]` so that HARP renders it as a MIDI track rather than a generic file picker. It also tags the model with `input:midi` or `output:midi`.
@@ -477,7 +486,7 @@ git push -u origin main
      ```
      git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.1
      ```
-     A tag moves if a release is ever corrected, and pip can go on serving the wheel it already built for that URL, through later rebuilds and factory reboots alike. Pin the commit the tag names wherever that matters, since a commit cannot move.
+     A released tag never moves, since a fix ships as a new patch release instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the tag's URL through later rebuilds and factory reboots alike.
 
      Note that you do not have to include the `gradio` package in this file.
 

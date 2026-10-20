@@ -412,7 +412,7 @@ class JobSupervisor:
             self._discard_worker("canceled", results_q, job_id)
 
         # Reload while the user decides what to do next, rather than on their next request
-        threading.Thread(target=self._warm_up, daemon=True).start()
+        self.start()
 
     def _ensure_worker(self):
         """Returns a live worker, starting one if needed. Called with the lock held."""
@@ -490,6 +490,20 @@ class JobSupervisor:
             worker.kill()
 
         worker.join(timeout=5)
+
+    def start(self):
+        """
+        Starts a worker ahead of the next job, in the background, if none is running.
+
+        A worker imports the app as it starts, models and all, so a worker started early is
+        ready by the time a job reaches it. Does nothing during a worker's own import of the
+        app, where an app building its endpoint outside a __main__ guard would otherwise
+        start a worker from every worker.
+        """
+        if getattr(mp.current_process(), "_inheriting", False):
+            return
+
+        threading.Thread(target=self._warm_up, daemon=True).start()
 
     def _warm_up(self):
         with self._lock:
@@ -596,4 +610,4 @@ class JobSupervisor:
             if self._worker is worker and self._job_id == job_id:
                 self._discard_worker("timed out", results_q, job_id)
 
-        threading.Thread(target=self._warm_up, daemon=True).start()
+        self.start()
