@@ -337,42 +337,31 @@ def check_output_files(values, output_components: list):
                 )
 
 
-# HARP saves each file it downloads with "_" and the time it arrived before the extension (e.g.,
-# "_10-20-2026_14-35-12", numbered as " (2)" if it shares the second), or with a 32-digit
-# hexadecimal id in versions before that, which a result named after a downloaded input would
-# carry forward
-_HARP_ID_SUFFIX = re.compile(r"_(\d{2}-\d{2}-\d{4}_\d{2}-\d{2}-\d{2}( \(\d+\))?|[0-9a-f]{32})$")
-
-
-def _name_part(text: str, lower: bool = True, keep_underscores: bool = False) -> str:
+def _name_part(text: str) -> str:
     """
     Text made safe for a filename, with each run of other characters turned into a hyphen.
 
-    Underscores separate the parts of a name (see rename_outputs), so they are replaced too,
-    except in a name made of parts already, such as an input that is itself a result.
+    Underscores separate the parts of a name (see rename_outputs), so they are replaced too.
     """
-    text = text.lower() if lower else text
-    allowed = r"A-Za-z0-9.\-_" if keep_underscores else r"A-Za-z0-9.\-"
-
-    return re.sub(f"[^{allowed}]+", "-", text).strip("-.")
+    return re.sub(r"[^a-z0-9.\-]+", "-", text.lower()).strip("-.")
 
 
-def rename_outputs(values, inputs: list, input_components: list, output_components: list,
-                   model_name: str):
+def rename_outputs(values, output_components: list, model_name: str):
     """
-    Rename the files process_fn returned after what they are.
+    Rename the files process_fn returned based on the model and output labels.
 
-    HARP shows each result under its file name, its media clipboard included, so a temporary or
-    generic name ("tmp3kx9q.wav", "output.wav") leaves results from different runs and models
-    impossible to tell apart. Each file becomes "<input>_<model>_<output>" with its own
-    extension: the stem of the first file input, which keeps results of different inputs apart,
-    the model's name, which keeps different models apart, and the output's label, which says
-    which result it is. A model without a file input leaves out the first part.
+    HARP tells results apart by their file names, which matters most in its media clipboard,
+    where results from many runs and models sit side by side. A temporary or generic name
+    ("tmp3kx9q.wav", "output.wav") leaves them impossible to tell apart, so each file becomes
+    "<model>_<output>": the model's name and the output's label, followed by the file's own
+    extension. HARP then stamps each result with the time it arrived, which keeps the results
+    of successive runs apart.
+
+    Results are not named after their input, since a result fed back in as an input would carry
+    every earlier name with it.
 
     Args:
         values: What process_fn returned.
-        inputs (list): The values process_fn was called with, one per input component.
-        input_components (list): Gradio input components.
         output_components (list): Gradio output components.
         model_name (str): The model card's name.
 
@@ -385,15 +374,7 @@ def rename_outputs(values, inputs: list, input_components: list, output_componen
     single = len(output_components) == 1
     values = [values] if single else list(values)
 
-    prefix = []
-
-    for gr_cmp, value in zip(input_components, inputs):
-        if isinstance(gr_cmp, (gr.Audio, gr.File)) and isinstance(value, (str, Path)) and value:
-            stem = _name_part(_HARP_ID_SUFFIX.sub("", Path(value).stem), lower=False,
-                              keep_underscores=True)[:48]
-            prefix = [stem] if stem else []
-            break
-
+    model = _name_part(model_name)
     labels = [_name_part(gr_cmp.label or "") for gr_cmp in output_components]
 
     def renamed(path, label):
@@ -403,9 +384,7 @@ def rename_outputs(values, inputs: list, input_components: list, output_componen
             return path
 
         # A directory of its own, so results sharing a name cannot overwrite one another
-        target = Path(tempfile.mkdtemp(prefix="pyharp-")) / (
-            "_".join(prefix + [_name_part(model_name), label]) + source.suffix
-        )
+        target = Path(tempfile.mkdtemp(prefix="pyharp-")) / f"{model}_{label}{source.suffix}"
 
         try:
             os.link(source, target)
@@ -533,8 +512,8 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             Defaults to True. Started by the first request instead, the worker makes
             that request wait while it imports the app, and on ZeroGPU the request's
             token can expire before process_fn reaches the GPU.
-        name_outputs (bool): Whether to rename returned files after the input, the model,
-            and the output's label (see rename_outputs). Defaults to True.
+        name_outputs (bool): Whether to rename returned files after the model and the
+            output's label (see rename_outputs). Defaults to True.
 
     Returns:
         app (dict): A dictionary containing:
@@ -615,8 +594,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         values = supervisor.run(process_fn, *inputs, progress=progress)
 
         if name_outputs:
-            values = rename_outputs(values, inputs, input_components, output_components,
-                                    model_card.name)
+            values = rename_outputs(values, output_components, model_card.name)
 
         return values
 

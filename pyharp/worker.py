@@ -495,9 +495,9 @@ class JobSupervisor:
         """
         Starts a worker ahead of the next job, in the background, if none is running.
 
-        A worker imports the app as it starts, models and all, so a worker started early is
-        ready by the time a job reaches it. Does nothing during a worker's own import of the
-        app, where an app building its endpoint outside a __main__ guard would otherwise
+        A worker imports the app as it starts, models and all, so that a worker started early
+        is ready by the time a job reaches it. Does nothing during a worker's own import of
+        the app, where an app building its endpoint outside a __main__ guard would otherwise
         start a worker from every worker.
         """
         if getattr(mp.current_process(), "_inheriting", False):

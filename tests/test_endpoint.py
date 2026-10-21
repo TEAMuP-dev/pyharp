@@ -292,40 +292,22 @@ def touch(directory, name):
     return str(path)
 
 
-def test_results_are_named_after_the_input_the_model_and_the_output(tmp_path):
-    song = touch(tmp_path, "My Song_0123456789abcdef0123456789abcdef.wav")
-    inputs = [gr.Audio(type="filepath"), gr.Slider()]
+def test_results_are_named_after_the_model_and_the_output(tmp_path):
     outputs = [gr.Audio(type="filepath", label="Vocals"), gr.File(label="Sung Notes")]
 
     vocals, notes = rename_outputs((touch(tmp_path, "tmp3kx9q.wav"), touch(tmp_path, "out.mid")),
-                                   [song, 3], inputs, outputs, "Open-Unmix")
+                                   outputs, "Open-Unmix")
 
-    # HARP's download id is dropped, so a chain of models does not carry it forward
-    assert Path(vocals).name == "My-Song_open-unmix_vocals.wav"
-    assert Path(notes).name == "My-Song_open-unmix_sung-notes.mid"
+    assert Path(vocals).name == "open-unmix_vocals.wav"
+    assert Path(notes).name == "open-unmix_sung-notes.mid"
     assert Path(vocals).read_bytes() == b"data"
-
-
-def test_the_time_harp_stamps_on_a_download_is_dropped_too(tmp_path):
-    take = touch(tmp_path, "My Song_open-unmix_vocals_10-20-2026_14-35-12 (2).wav")
-    result = rename_outputs(touch(tmp_path, "x.wav"), [take], [gr.Audio(type="filepath")],
-                            [gr.Audio(type="filepath", label="Drums")], "Demucs")
-
-    assert Path(result).name == "My-Song_open-unmix_vocals_demucs_drums.wav"
-
-
-def test_a_model_without_a_file_input_names_results_after_itself(tmp_path):
-    result = rename_outputs(touch(tmp_path, "output.wav"), ["a prompt"], [gr.Textbox()],
-                            [gr.Audio(type="filepath", label="Generated Audio")], "MusicGen")
-
-    assert Path(result).name == "musicgen_generated-audio.wav"
 
 
 def test_outputs_sharing_a_label_or_lacking_one_are_told_apart_by_position(tmp_path):
     outputs = [gr.Audio(type="filepath", label="Take"), gr.Audio(type="filepath", label="Take"),
                gr.Audio(type="filepath")]
     names = [Path(p).name for p in rename_outputs(
-        tuple(touch(tmp_path, f"{n}.wav") for n in "abc"), [], [], outputs, "TRIA")]
+        tuple(touch(tmp_path, f"{n}.wav") for n in "abc"), outputs, "TRIA")]
 
     assert names == ["tria_take-1.wav", "tria_take-2.wav", "tria_3.wav"]
 
@@ -335,13 +317,13 @@ def test_values_that_are_not_files_pass_through(tmp_path):
     array_audio = (44100, [0.0])
     outputs = [gr.JSON(), gr.Audio(type="numpy", label="Audio"), gr.Audio(type="filepath")]
 
-    assert rename_outputs((labels, array_audio, None), [], [], outputs, "Probe") == \
+    assert rename_outputs((labels, array_audio, None), outputs, "Probe") == \
         (labels, array_audio, None)
 
 
 def test_a_list_of_files_is_numbered(tmp_path):
     files = [touch(tmp_path, "x.mid"), touch(tmp_path, "y.mid")]
-    result = rename_outputs(files, [], [], [gr.File(label="Stems", file_count="multiple")], "Probe")
+    result = rename_outputs(files, [gr.File(label="Stems", file_count="multiple")], "Probe")
 
     assert [Path(p).name for p in result] == ["probe_stems-1.mid", "probe_stems-2.mid"]
 
@@ -361,4 +343,5 @@ def test_the_endpoint_renames_what_the_worker_returns(tmp_path, progress):
         for child in multiprocessing.active_children():
             JobSupervisor._end_process(child)
 
-    assert Path(result).name == "riff_anyaccomp_accompaniment.wav"
+    # The input's name is left out, so feeding a result back in does not lengthen the next one
+    assert Path(result).name == "anyaccomp_accompaniment.wav"
