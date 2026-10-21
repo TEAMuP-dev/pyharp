@@ -478,7 +478,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             - The function must accept the inputs in the same order as the inputs list.
             - The function must return the outputs in the same order as the outputs list,
               with a filepath string pointing to each output file. Returned files are
-              renamed after what they are (see name_outputs).
+              renamed based on the model and output label (see name_outputs).
             - process_fn runs in a worker process, so its arguments and return
               values must be picklable (e.g. filepath strings, numbers, booleans,
               JSON-serializable data), and it must be reachable by import: defined
