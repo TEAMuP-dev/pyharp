@@ -482,7 +482,7 @@ git push -u origin main
 
      Place all of the required **pip** packages in this file. It should also include the latest version of `pyharp`:
      ```
-     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.1
+     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.2
      ```
      A released tag never moves, since a fix ships as a new patch release instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the tag's URL through later rebuilds and factory reboots alike.
 
@@ -526,7 +526,7 @@ git push -u origin main
      The frontend environment, which needs only `gradio` and `pyharp`:
      ```
      gradio==6.24.0
-     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.1
+     git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.2
      ```
 
    - `requirements-backend.txt`
