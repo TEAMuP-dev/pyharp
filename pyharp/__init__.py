@@ -1,5 +1,5 @@
 # Single source of truth for the version, which setup.py reads rather than imports
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 # PyHARP runs process_fn in a separate worker process, so that pressing Cancel in HARP
 # can stop work that has already started (see worker.py). Canceling sends the worker an

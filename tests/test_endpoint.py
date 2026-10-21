@@ -2,8 +2,11 @@
 Tests for build_endpoint: what it tells HARP about a model, and what it refuses.
 """
 
+import multiprocessing
 import os
 import sys
+import time
+from pathlib import Path
 
 import gradio as gr
 import pytest
@@ -11,8 +14,10 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyharp import ModelCard, build_endpoint  # noqa: E402
-from pyharp.core import check_output_files, enforce_output_file_types  # noqa: E402
+from pyharp.core import (check_output_files, enforce_output_file_types,  # noqa: E402
+                         rename_outputs)
 from pyharp.tags import Channels, Subcategory  # noqa: E402
+from pyharp.worker import JobSupervisor  # noqa: E402
 
 
 def card(**kwargs):
@@ -23,7 +28,13 @@ def card(**kwargs):
 
 
 def endpoint(process_fn, inputs=None, outputs=None, **kwargs):
-    """Builds an endpoint and hands back its widgets and the Blocks holding it."""
+    """
+    Builds an endpoint and hands back its widgets and the Blocks holding it.
+
+    Its worker is not started unless a test asks for it, since nothing here runs a job.
+    """
+    kwargs.setdefault("warm_start", False)
+
     with gr.Blocks() as demo:
         built = build_endpoint(
             model_card=kwargs.pop("model_card", card()),
@@ -71,6 +82,25 @@ def test_it_returns_the_widgets_HARP_drives():
     built, _ = endpoint(passthrough)
 
     assert set(built) == {"controls_data", "controls_button", "process_button", "cancel_button"}
+
+
+def test_the_worker_starts_with_the_endpoint():
+    before = {child.pid for child in multiprocessing.active_children()}
+
+    endpoint(passthrough, warm_start=True)
+
+    deadline = time.monotonic() + 30
+    started = []
+
+    while not started and time.monotonic() < deadline:
+        started = [c for c in multiprocessing.active_children() if c.pid not in before]
+        time.sleep(0.05)
+
+    for child in started:
+        JobSupervisor._end_process(child)
+
+    # Started by building the endpoint, with no request having reached it
+    assert len(started) == 1
 
 
 def test_the_payload_describes_the_card_its_inputs_and_its_outputs():
@@ -248,3 +278,70 @@ def test_the_check_keeps_the_signature_gradio_inspects():
 
     assert wrapped is not passthrough
     assert inspect.signature(wrapped) == inspect.signature(passthrough)
+
+
+# --------------------------------------------------------------------------------
+# Output file names
+# --------------------------------------------------------------------------------
+
+
+def touch(directory, name):
+    path = directory / name
+    path.write_bytes(b"data")
+
+    return str(path)
+
+
+def test_results_are_named_after_the_model_and_the_output(tmp_path):
+    outputs = [gr.Audio(type="filepath", label="Vocals"), gr.File(label="Sung Notes")]
+
+    vocals, notes = rename_outputs((touch(tmp_path, "tmp3kx9q.wav"), touch(tmp_path, "out.mid")),
+                                   outputs, "Open-Unmix")
+
+    assert Path(vocals).name == "open-unmix_vocals.wav"
+    assert Path(notes).name == "open-unmix_sung-notes.mid"
+    assert Path(vocals).read_bytes() == b"data"
+
+
+def test_outputs_sharing_a_label_or_lacking_one_are_told_apart_by_position(tmp_path):
+    outputs = [gr.Audio(type="filepath", label="Take"), gr.Audio(type="filepath", label="Take"),
+               gr.Audio(type="filepath")]
+    names = [Path(p).name for p in rename_outputs(
+        tuple(touch(tmp_path, f"{n}.wav") for n in "abc"), outputs, "TRIA")]
+
+    assert names == ["tria_take-1.wav", "tria_take-2.wav", "tria_3.wav"]
+
+
+def test_values_that_are_not_files_pass_through(tmp_path):
+    labels = {"labels": []}
+    array_audio = (44100, [0.0])
+    outputs = [gr.JSON(), gr.Audio(type="numpy", label="Audio"), gr.Audio(type="filepath")]
+
+    assert rename_outputs((labels, array_audio, None), outputs, "Probe") == \
+        (labels, array_audio, None)
+
+
+def test_a_list_of_files_is_numbered(tmp_path):
+    files = [touch(tmp_path, "x.mid"), touch(tmp_path, "y.mid")]
+    result = rename_outputs(files, [gr.File(label="Stems", file_count="multiple")], "Probe")
+
+    assert [Path(p).name for p in result] == ["probe_stems-1.mid", "probe_stems-2.mid"]
+
+
+def test_the_endpoint_renames_what_the_worker_returns(tmp_path, progress):
+    import jobs
+
+    song = touch(tmp_path, "riff.wav")
+    _, demo = endpoint(jobs.write_temporary_output, inputs=[gr.Audio(type="filepath")],
+                       outputs=[gr.Audio(type="filepath", label="Accompaniment")],
+                       model_card=card(name="AnyAccomp"))
+    handler = next(spec.fn for spec in demo.fns.values() if spec.api_name == "process")
+
+    try:
+        result = handler(song, progress)
+    finally:
+        for child in multiprocessing.active_children():
+            JobSupervisor._end_process(child)
+
+    # The input's name is left out, so feeding a result back in does not lengthen the next one
+    assert Path(result).name == "anyaccomp_accompaniment.wav"

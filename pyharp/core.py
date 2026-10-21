@@ -7,6 +7,10 @@ from typing import Any, List, Optional, Tuple, Union
 import inspect
 import gradio as gr
 import functools
+import os
+import re
+import shutil
+import tempfile
 
 from .tags import INPUT_KEY, OUTPUT_KEY, Modality, Tag, build_tags, io_tag
 
@@ -333,6 +337,78 @@ def check_output_files(values, output_components: list):
                 )
 
 
+def _name_part(text: str) -> str:
+    """
+    Text made safe for a filename, with each run of other characters turned into a hyphen.
+
+    Underscores separate the parts of a name (see rename_outputs), so they are replaced too.
+    """
+    return re.sub(r"[^a-z0-9.\-]+", "-", text.lower()).strip("-.")
+
+
+def rename_outputs(values, output_components: list, model_name: str):
+    """
+    Rename the files process_fn returned based on the model and output labels.
+
+    HARP tells results apart by their file names, which matters most in its media clipboard,
+    where results from many runs and models sit side by side. A temporary or generic name
+    ("tmp3kx9q.wav", "output.wav") leaves them impossible to tell apart, so each file becomes
+    "<model>_<output>": the model's name and the output's label, followed by the file's own
+    extension. HARP then stamps each result with the time it arrived, which keeps the results
+    of successive runs apart.
+
+    Results are not named after their input, since a result fed back in as an input would carry
+    every earlier name with it.
+
+    Args:
+        values: What process_fn returned.
+        output_components (list): Gradio output components.
+        model_name (str): The model card's name.
+
+    Returns:
+        values: The same values, with each returned file replaced by a renamed copy. Anything
+            that is not a path to a file, such as labels or audio returned as an array, is
+            passed through.
+    """
+
+    single = len(output_components) == 1
+    values = [values] if single else list(values)
+
+    model = _name_part(model_name)
+    labels = [_name_part(gr_cmp.label or "") for gr_cmp in output_components]
+
+    def renamed(path, label):
+        source = Path(path)
+
+        if not source.is_file():
+            return path
+
+        # A directory of its own, so results sharing a name cannot overwrite one another
+        target = Path(tempfile.mkdtemp(prefix="pyharp-")) / f"{model}_{label}{source.suffix}"
+
+        try:
+            os.link(source, target)
+        except OSError:
+            shutil.copy2(source, target)
+
+        return str(target)
+
+    for index, (gr_cmp, value) in enumerate(zip(output_components, values)):
+        if value is None or not isinstance(gr_cmp, (gr.Audio, gr.File)):
+            continue
+
+        # An output without a label, or sharing it with another, is told apart by its position
+        label = labels[index] if labels[index] and labels.count(labels[index]) == 1 \
+            else "-".join(filter(None, [labels[index], f"{index + 1}"]))
+
+        if isinstance(value, (str, Path)):
+            values[index] = renamed(value, label)
+        elif isinstance(value, (list, tuple)) and all(isinstance(v, (str, Path)) for v in value):
+            values[index] = [renamed(v, f"{label}-{n + 1}") for n, v in enumerate(value)]
+
+    return values[0] if single else tuple(values)
+
+
 def enforce_output_file_types(process_fn: callable, output_components: list) -> callable:
     """
     Make process_fn fail if it returns a file its gr.File output does not declare.
@@ -378,7 +454,8 @@ def enforce_output_file_types(process_fn: callable, output_components: list) -> 
 
 def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
                    process_fn: callable, show_controls: bool = False,
-                   timeout_s: int = 900) -> dict:
+                   timeout_s: int = 900, warm_start: bool = True,
+                   name_outputs: bool = True) -> dict:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -400,7 +477,8 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             - Function processing the inputs to generate the output.
             - The function must accept the inputs in the same order as the inputs list.
             - The function must return the outputs in the same order as the outputs list,
-              with a filepath string pointing to each output file.
+              with a filepath string pointing to each output file. Returned files are
+              renamed based on the model and output label (see name_outputs).
             - process_fn runs in a worker process, so its arguments and return
               values must be picklable (e.g. filepath strings, numbers, booleans,
               JSON-serializable data), and it must be reachable by import: defined
@@ -411,7 +489,9 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
             - The request's headers are carried into the worker, so that ZeroGPU
               still bills the GPU quota of whoever made the request.
             - The worker is reused between requests, so anything loaded when the
-              module is imported is loaded once rather than per job.
+              module is imported is loaded once rather than per job. It is started
+              when the endpoint is built (see warm_start), so that loading happens
+              while the server comes up rather than during the first request.
             - If the Cancel button is pressed, or if process_fn runs longer than
               timeout_s, the job is interrupted. A job that will not yield to an
               interrupt has its worker replaced instead.
@@ -428,6 +508,12 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         timeout_s (int): Maximum time in seconds to let process_fn run before the
             job is stopped. Defaults to 900 (15 minutes). Increase this for models
             that need more time to process their inputs.
+        warm_start (bool): Whether to start the worker as soon as the endpoint is built.
+            Defaults to True. Started by the first request instead, the worker makes
+            that request wait while it imports the app, and on ZeroGPU the request's
+            token can expire before process_fn reaches the GPU.
+        name_outputs (bool): Whether to rename returned files after the model and the
+            output's label (see rename_outputs). Defaults to True.
 
     Returns:
         app (dict): A dictionary containing:
@@ -499,11 +585,18 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
 
     # Runs process_fn somewhere it can be stopped once it has started
     supervisor = JobSupervisor(timeout_s=timeout_s)
+    if warm_start:
+        supervisor.start()
 
     def supervised_process(*args):
         *inputs, progress = args
 
-        return supervisor.run(process_fn, *inputs, progress=progress)
+        values = supervisor.run(process_fn, *inputs, progress=progress)
+
+        if name_outputs:
+            values = rename_outputs(values, output_components, model_card.name)
+
+        return values
 
     # Gradio injects a progress tracker bound to the current request into any handler
     # that declares one, and finds it by scanning leading positional parameters. It

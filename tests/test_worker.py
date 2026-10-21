@@ -52,6 +52,37 @@ def test_worker_is_reused_between_jobs(supervisor, progress):
     assert first["worker_id"] == second["worker_id"]
 
 
+def wait_for_worker(sup, seconds=30):
+    deadline = time.monotonic() + seconds
+
+    while sup._worker is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+
+    return sup._worker
+
+
+def test_start_has_a_worker_running_before_the_first_job(supervisor, progress):
+    sup = supervisor()
+    sup.start()
+
+    worker = wait_for_worker(sup)
+
+    assert worker is not None and worker.is_alive()
+
+    # The first job is handed to that worker rather than starting one of its own
+    assert sup.run(jobs.identify, progress=progress)["pid"] == worker.pid
+
+
+def test_start_leaves_a_running_worker_alone(supervisor, progress):
+    sup = supervisor()
+    first = sup.run(jobs.identify, progress=progress)
+
+    sup.start()
+    time.sleep(0.5)
+
+    assert sup.run(jobs.identify, progress=progress)["pid"] == first["pid"]
+
+
 # --------------------------------------------------------------------------------
 # Results and failures
 # --------------------------------------------------------------------------------
