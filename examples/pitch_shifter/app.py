@@ -71,7 +71,7 @@ if __name__ == "__main__":
             gr.Audio(
                 type="filepath",
                 label="Input Audio"
-            ).harp_required(True),
+            ).harp_required(True).set_info("The audio to shift."),
             gr.Slider(
                 minimum=-24,
                 maximum=24,
@@ -87,7 +87,7 @@ if __name__ == "__main__":
             # No format is set, so Gradio returns the container process_fn chose
             gr.Audio(
                 type="filepath",
-                label="Output Audio"
+                label="Shifted Audio"
             ).set_info("The pitch-shifted audio."),
         ]
 

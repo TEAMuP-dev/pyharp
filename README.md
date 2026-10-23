@@ -22,6 +22,7 @@ This README documents how to build a PyHARP app. HARP's [deployment guidelines](
     * **[Examples](#examples)**
 * **[Hosting Endpoints](#hosting-endpoints)**
     * **[Gradio Spaces](#gradio-spaces)**
+        * **[ZeroGPU](#zerogpu)**
     * **[Docker Spaces](#docker-spaces)**
     * **[Binary Files](#binary-files)**
     * **[Self-Hosted Endpoints](#self-hosted-endpoints)**
@@ -225,7 +226,7 @@ A few smaller notes:
 
 ## Pre-Trained Models
 If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
-- Load the model outside of `process_fn`, at the top level of `app.py`, so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)). Note that this happens once per worker process rather than once per app, and that a worker is replaced if a job has to be killed to cancel it ([see above](#worker-processes)).
+- Load the model outside of `process_fn`, so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Load it under `if __name__ != "__main__":`, which only the [worker](#worker-processes) runs, since it imports `app.py` under another name. The server never runs `process_fn`, so a model loaded at the top level would be held twice, and two processes downloading the same file at once can read it half written. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)). Note that a worker is replaced if a job has to be killed to cancel it ([see above](#worker-processes)).
 - Fetch model weights from where they are already published rather than copying them into your app repository. `huggingface_hub.hf_hub_download` covers a model on the Hub, and many projects ship their own downloader. Pin a revision so the app does not change behavior when upstream moves.
 - Commit weights into the repository only for small assets with no home of their own. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
 
@@ -253,7 +254,7 @@ if __name__ == "__main__":
             gr.Audio(
                 type="filepath",
                 label="Input Audio"
-            ).harp_required(True),
+            ).harp_required(True).set_info("The audio to shift."),
             gr.Slider(
                 minimum=-24,
                 maximum=24,
@@ -269,7 +270,7 @@ if __name__ == "__main__":
             # No format is set, so Gradio returns the container process_fn chose
             gr.Audio(
                 type="filepath",
-                label="Output Audio"
+                label="Shifted Audio"
             ).set_info("The pitch-shifted audio."),
         ]
 
@@ -295,12 +296,14 @@ Audio and File components accept two PyHARP extensions: `.harp_required(False)` 
 ### Error Reporting
 Gradio only forwards the text of an exception when `show_error=True` is set or when the exception is a `gr.Error`. Without either, HARP can report only that an unspecified error occurred, so launch with `show_error=True` as above.
 
-Raise `gr.Error` for failures you expect users to hit, such as unsupported input. Its message is always forwarded, regardless of `show_error`, and reads as a deliberate message rather than a crash:
+Raise `gr.Error` for failures you expect users to hit, such as an input the model cannot use. Its message is always forwarded, regardless of `show_error`, and reads as a deliberate message rather than a crash:
 
 ```python
-if signal.sample_rate != 44100:
-    raise gr.Error("This model requires 44.1 kHz audio.")
+if signal.duration < 3:
+    raise gr.Error(f"Key detection needs at least 3 seconds of audio, but received {signal.duration:.1f}.")
 ```
+
+Convert what can be converted rather than refusing it. A model that runs at a fixed sample rate should resample its input and then restore the input's rate ([see HARP's guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#preserving-the-input-format)).
 
 Note that `gr.Info` and `gr.Warning` never reach HARP. Gradio does not forward them on the endpoint HARP uses, so they appear only on the Gradio page.
 
@@ -338,7 +341,7 @@ if __name__ == "__main__":
                 type="filepath",
                 label="Input MIDI",
                 file_types=[".mid", ".midi"]
-            ).harp_required(True),
+            ).harp_required(True).set_info("The MIDI to transpose."),
             ...
         ]
 
@@ -346,7 +349,7 @@ if __name__ == "__main__":
         output_components = [
             gr.File(
                 type="filepath",
-                label="Output MIDI",
+                label="Transposed MIDI",
                 file_types=[".mid", ".midi"]
             ).set_info("The transposed MIDI."),
             ...
@@ -486,18 +489,71 @@ git push -u origin main
      ```
      A released tag never moves, since a fix ships as a new patch release instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the tag's URL through later rebuilds and factory reboots alike.
 
-     Note that you do not have to include the `gradio` package in this file.
+     Note that you do not have to include the `gradio` package in this file. Do include `spaces`, which ZeroGPU needs and which does nothing on other hardware ([see below](#zerogpu)).
 
    - `packages.txt`
 
      Place any necessary **apt-get install** Debian packages in this file. Some models may require these.
+
+### ZeroGPU
+A ZeroGPU Space reserves a GPU for each call, out of the daily allowance of whoever made it. The same `app.py` runs unchanged on CPU, on a dedicated GPU, and on ZeroGPU when it does the following:
+
+- **Import `spaces` first**, before `torch` and `pyharp`, or the Space fails at startup on ZeroGPU.
+- **Load the model in the worker alone and place it on the device there** ([see above](#pre-trained-models)). ZeroGPU emulates CUDA outside the GPU function, so placing the model at import works, and placing it inside the function would repeat the move on every call.
+- **Decorate the function that does the model's work, not `process_fn`.** An undecorated `process_fn` checks the inputs first, so a request that cannot run is refused before any GPU is reserved. Read the input there with `soundfile` rather than `torchaudio`, whose decoding fails outside the GPU function on ZeroGPU.
+- **Size each reservation to the request.** `duration` takes a function of the same arguments as the decorated function. A call that runs past its reservation is stopped, and can cost the caller the whole reservation. ZeroGPU itself refuses a request that the caller's tier or remaining allowance cannot cover, before reserving anything, so refuse only what cannot finish, such as a reservation longer than `timeout_s` ([see above](#worker-processes)).
+
+```python
+import spaces  # before torch and pyharp, as ZeroGPU requires
+
+from pyharp import ModelCard, build_endpoint
+
+import gradio as gr
+import soundfile as sf
+import torch
+
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Only the worker, which imports this file under another name, runs process_fn
+if __name__ != "__main__":
+    model = MyModel.from_pretrained(...).eval().to(device)
+
+# timeout_s stops a job after 15 minutes by default, so a longer reservation could not finish
+MAX_GPU_SECONDS = 900
+
+
+def gpu_seconds(input_audio_path: str) -> float:
+    # Timed on real inputs, the longest included, and padded a little
+    return 10 + 0.5 * sf.info(input_audio_path).duration
+
+
+def process_fn(input_audio_path: str) -> str:
+    # Checked before a GPU is reserved, so a request that cannot run spends nothing
+    try:
+        sf.info(input_audio_path)
+    except Exception as exc:
+        raise gr.Error(f"Could not read the audio file: {exc}") from exc
+    if gpu_seconds(input_audio_path) > MAX_GPU_SECONDS:
+        raise gr.Error("The recording is too long for one request to finish. Trim it.")
+
+    return separate(input_audio_path)
+
+
+@spaces.GPU(duration=gpu_seconds)
+@torch.inference_mode()
+def separate(input_audio_path: str) -> str:
+    ...
+```
+
+An app with no model to run, such as one that only applies DSP, gains nothing from a GPU and belongs on CPU, so it leaves the decorator out. HARP's deployment guidelines cover the rest, under [Hardware Portability](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#hardware-portability) and [Protecting the Caller's Allowance](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#protecting-the-callers-allowance).
 
 ## Docker Spaces
 Some models were written against older versions of Python and cannot run alongside the current version of Gradio. For example, the `madmom` package relies on the `numpy.float` and `numpy.int` aliases removed in `numpy==1.24`, so it cannot share an environment with a package that requires a newer NumPy.
 
 Rather than patching the model's source, keep the two apart: a **frontend** environment running Gradio and PyHARP, and a **backend** environment on the older Python running the model. The frontend invokes the backend as a subprocess and the two exchange JSON. Both live in a single Docker image, which a Gradio Space cannot express, hence a Docker Space. Note that ZeroGPU is not available for Docker Spaces, so GPU resources must be paid for with this option.
 
-Our [BeatNet Space](https://huggingface.co/spaces/teamup-tech/BeatNet-dual) is a working example of this layout.
+Our [BeatNet Space](https://huggingface.co/spaces/teamup-tech/BeatNet) is a working example of this layout.
 
 Cancellation reaches the backend as well. `process_fn` runs in a [worker process](#worker-processes),
 which leads its own process group, so stopping a job stops whatever it started. Invoke the backend
@@ -569,9 +625,9 @@ git push -u origin main
 
      # Metadata shown in HARP's model info panel
      model_card = ModelCard(
-         name="Legacy Model",
+         name="Legacy Restorer",
          author="TEAMuP",
-         description="An example model which runs under an older version of Python.",
+         description="An example restoration model which runs under an older version of Python.",
          tags=["example", "docker", "dual environment"],
      )
 
@@ -613,11 +669,13 @@ git push -u origin main
          # Build the Gradio endpoint
          with gr.Blocks() as demo:
              input_components = [
-                 gr.Audio(type="filepath", label="Input Audio").harp_required(True),
+                 gr.Audio(type="filepath", label="Input Audio").harp_required(True)
+                 .set_info("The recording to restore."),
              ]
 
              output_components = [
-                 gr.Audio(type="filepath", label="Output Audio"),
+                 gr.Audio(type="filepath", label="Restored Audio")
+                 .set_info("The restored recording."),
              ]
 
              app = build_endpoint(
@@ -693,7 +751,7 @@ Here are a few tips and best practices when dealing with Hugging Face Spaces:
 - Spaces operate based off of the files in the `main` branch
 - An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to Hugging Face Spaces
 - A `.gitignore` file should be added to maintain repository orderliness (_e.g._, to ignore `_outputs`)
-- Pin versions for `numpy` (_e.g._, `<2`), `torch` (_e.g._, `==2.2.2`), and `torchaudio` (_e.g._, `==2.2.2`) to avoid unexpected build issues caused by the latest versions of these packages
+- Pin the versions your app was tested with, `numpy`, `torch`, and `torchaudio` included, so that a rebuild cannot change them. On ZeroGPU an exact `torch` pin must be a release it accepts, `2.8.0` or newer ([see HARP's guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#choosing-the-hardware)), or the Space stops before it starts
 
 For more information, please refer to the official documentation from Hugging Face about [Spaces](https://huggingface.co/docs/hub/spaces).
 
@@ -746,11 +804,15 @@ Spaces are the quickest way to publish an app, but they cap the hardware you can
 
 1. **Load the model once, outside `process_fn`.**
 
-   As described under [Pre-Trained Models](#pre-trained-models), anything expensive belongs at module scope. On a GPU machine this is where the weights are moved onto the device:
+   As described under [Pre-Trained Models](#pre-trained-models), anything expensive is loaded once, in the worker. On a GPU machine this is also where the weights are moved onto the device, and loading them in the worker alone keeps a single copy in GPU memory:
 
    ```python
-   model = MyModel.from_pretrained(...).to("cuda")
-   model.eval()
+   device = "cuda" if torch.cuda.is_available() else "cpu"
+
+   # Only the worker, which imports this file under another name, runs process_fn
+   if __name__ != "__main__":
+       model = MyModel.from_pretrained(...).to(device)
+       model.eval()
 
    def process_fn(input_audio_path, ...):
        signal = load_audio(input_audio_path)

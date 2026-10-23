@@ -15,15 +15,18 @@ import audiotools
 
 SAMPLE_RATE = 44100
 
-# Anything expensive to construct belongs out here, at module scope, so that it is
-# built once when the app starts instead of on every request. This soundfont is
-# downloaded on first use, and a real model would be loaded onto the GPU in the
-# same place. Doing either inside process_fn would repeat the cost for every user.
-synthesizer = Synthesizer(
-    sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
-    sample_rate=SAMPLE_RATE,
-    quality=4 # Default quality setting
-)
+# Anything expensive to construct belongs outside process_fn, so that it is built
+# once when the app starts instead of on every request. Only the worker that runs
+# process_fn needs it, and the worker imports this file under a name other than
+# __main__, so it is built there alone. The server would otherwise hold a second
+# copy, and both processes would download the soundfont at once. A real model
+# would be loaded onto the GPU in the same place.
+if __name__ != "__main__":
+    synthesizer = Synthesizer(
+        sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
+        sample_rate=SAMPLE_RATE,
+        quality=4 # Default quality setting
+    )
 
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
@@ -74,7 +77,7 @@ if __name__ == "__main__":
                 type="filepath",
                 label="Input MIDI",
                 file_types=[".mid", ".midi"]
-            ).harp_required(True),
+            ).harp_required(True).set_info("The MIDI to render."),
         ]
 
         # Order must match the values returned by process_fn
@@ -82,7 +85,7 @@ if __name__ == "__main__":
             gr.Audio(
                 type="filepath",
                 format="wav",
-                label="Output Audio"
+                label="Synthesized Audio"
             ).set_info("The synthesized audio."),
         ]
 

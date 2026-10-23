@@ -58,7 +58,7 @@ if __name__ == "__main__":
                 type="filepath",
                 label="Input MIDI",
                 file_types=[".mid", ".midi"]
-            ).harp_required(True),
+            ).harp_required(True).set_info("The MIDI to transpose."),
             gr.Slider(
                 minimum=-24,
                 maximum=24,
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         output_components = [
             gr.File(
                 type="filepath",
-                label="Output MIDI",
+                label="Transposed MIDI",
                 file_types=[".mid", ".midi"]
             ).set_info("The transposed MIDI."),
         ]
