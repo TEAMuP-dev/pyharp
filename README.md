@@ -1,4 +1,9 @@
-[![HARP](https://gh-card.dev/repos/TEAMuP-dev/HARP.svg)](https://github.com/TEAMuP-dev/HARP)
+<a href="https://github.com/TEAMuP-dev/HARP">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github-stats-extended.vercel.app/api/pin/?username=TEAMuP-dev&repo=HARP&theme=dark_github_repocard">
+    <img alt="HARP" src="https://github-stats-extended.vercel.app/api/pin/?username=TEAMuP-dev&repo=HARP&theme=light_github_repocard">
+  </picture>
+</a>
 
 PyHARP is the **companion package** of [HARP](https://github.com/TEAMuP-dev/HARP), an application that brings machine learning models into Digital Audio Workstations (DAWs). It wraps **arbitrary Python code** for audio and MIDI processing in [Gradio](https://www.gradio.app) endpoints that HARP can reach, so that a model too demanding for common hardware runs remotely and asynchronously. HARP runs standalone or within a DAW that supports external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). [Our website](https://harp.tools/content/install/) covers installing HARP and setting it up with each operating system and DAW.
 
