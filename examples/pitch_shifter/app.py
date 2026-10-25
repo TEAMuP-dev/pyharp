@@ -33,13 +33,20 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
 
     Args:
         input_audio_path (str): Path to the audio file sent by HARP.
-        pitch_shift_amount (int): Amount to shift by, in semitones.
+        pitch_shift_amount (int): Semitones by which to shift.
 
     Returns:
         output_audio_path (str): Path to the pitch-shifted audio.
     """
 
-    signal = load_audio(input_audio_path)
+    # Refused with a message, since anything but a gr.Error reaches HARP as a
+    # failure without a reason on which a user can act
+    try:
+        signal = load_audio(input_audio_path)
+    except Exception as exc:
+        raise gr.Error(f"Could not read the audio file: {exc}") from exc
+    if signal.signal_length == 0:
+        raise gr.Error("The audio file is empty.")
 
     pitch_shift = torchaudio.transforms.PitchShift(
         signal.sample_rate,
@@ -50,11 +57,13 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
     signal.audio_data = pitch_shift(signal.audio_data)
 
     # Returned in the container it arrived in, unless that container is lossy.
-    # Such a file was encoded once already, and the shift moves that encoder's
-    # artifacts out from under the maskers that hid them, so writing .mp3 back
+    # Such a file was encoded once already, and the shift moves the artifacts of
+    # that encoder out from under the maskers that hid them, so writing .mp3 back
     # would layer a second round of loss over a first that is now audible.
+    # AIFF comes back as WAV too, since Gradio converts an AIFF output to
+    # 16-bit WAV, which browsers can play, and soundfile cannot write .aif.
     input_ext = Path(input_audio_path).suffix.lower()
-    output_ext = input_ext if input_ext in {".wav", ".aiff", ".flac"} else ".wav"
+    output_ext = input_ext if input_ext in {".wav", ".flac"} else ".wav"
 
     output_audio_path = str(save_audio(signal, get_default_path(ext=output_ext)))
 
@@ -78,7 +87,7 @@ if __name__ == "__main__":
                 step=1,
                 value=7,
                 label="Pitch Shift (semitones)",
-                info="Amount to shift the pitch by."
+                info="The number of semitones by which to shift the pitch."
             ),
         ]
 

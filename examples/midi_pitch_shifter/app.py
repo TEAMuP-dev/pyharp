@@ -28,13 +28,18 @@ def process_fn(input_midi_path: str, pitch_shift_amount: int) -> str:
 
     Args:
         input_midi_path (str): Path to the MIDI file sent by HARP.
-        pitch_shift_amount (int): Amount to transpose by, in semitones.
+        pitch_shift_amount (int): Semitones by which to transpose.
 
     Returns:
         output_midi_path (str): Path to the transposed MIDI.
     """
 
-    midi = load_midi(input_midi_path)
+    # Refused with a message, since anything but a gr.Error reaches HARP as a
+    # failure without a reason on which a user can act
+    try:
+        midi = load_midi(input_midi_path)
+    except Exception as exc:
+        raise gr.Error(f"Could not read the MIDI file: {exc}") from exc
 
     # Edit the loaded score in place to preserve ticks per quarter, tempo,
     # and track structure.
@@ -65,7 +70,7 @@ if __name__ == "__main__":
                 step=1,
                 value=7,
                 label="Pitch Shift (semitones)",
-                info="Amount to transpose by."
+                info="The number of semitones by which to transpose."
             ),
         ]
 

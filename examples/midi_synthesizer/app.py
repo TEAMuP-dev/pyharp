@@ -15,19 +15,6 @@ import audiotools
 
 SAMPLE_RATE = 44100
 
-# Anything expensive to construct belongs outside process_fn, so that it is built
-# once when the app starts instead of on every request. Only the worker that runs
-# process_fn needs it, and the worker imports this file under a name other than
-# __main__, so it is built there alone. The server would otherwise hold a second
-# copy, and both processes would download the soundfont at once. A real model
-# would be loaded onto the GPU in the same place.
-if __name__ != "__main__":
-    synthesizer = Synthesizer(
-        sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
-        sample_rate=SAMPLE_RATE,
-        quality=4 # Default quality setting
-    )
-
 # Metadata shown in HARP's model info panel
 model_card = ModelCard(
     name="MIDI Synthesizer",
@@ -43,6 +30,19 @@ model_card = ModelCard(
     ],
 )
 
+# Anything expensive to construct belongs outside process_fn, so that it is built
+# once when the app starts instead of on every request. Only the worker that runs
+# process_fn needs it, and the worker imports this file under a name other than
+# __main__, so it is built there alone. The server would otherwise hold a second
+# copy, and both processes would download the soundfont at once. A real model
+# would be loaded onto the GPU in the same place.
+if __name__ != "__main__":
+    synthesizer = Synthesizer(
+        sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
+        sample_rate=SAMPLE_RATE,
+        quality=4 # Default quality setting
+    )
+
 
 def process_fn(input_midi_path: str) -> str:
     """
@@ -55,7 +55,12 @@ def process_fn(input_midi_path: str) -> str:
         output_audio_path (str): Path to the rendered audio.
     """
 
-    midi = load_midi(input_midi_path)
+    # Refused with a message, since anything but a gr.Error reaches HARP as a
+    # failure without a reason on which a user can act
+    try:
+        midi = load_midi(input_midi_path)
+    except Exception as exc:
+        raise gr.Error(f"Could not read the MIDI file: {exc}") from exc
 
     audio = audiotools.AudioSignal(
         synthesizer.render(midi, stereo=True),
