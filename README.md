@@ -464,12 +464,13 @@ GUI elements corresponding to these labels will appear on the respective output 
 ## Examples
 We provide several examples of how to create a PyHARP app under the `examples/` directory. The first three are minimal templates covering each combination of input and output media. The fourth is a reference for every supported component. You can also find a list of models already deployed as PyHARP apps on [our website](https://harp.tools/content/usage/models.html).
 
-| Example | In | Out | Illustrates |
-| --- | --- | --- | --- |
-| [`pitch_shifter`](examples/pitch_shifter) | audio | audio | The minimal app: one track in, one control, one track out. |
-| [`midi_pitch_shifter`](examples/midi_pitch_shifter) | MIDI | MIDI | The same shape, on MIDI tracks. |
-| [`midi_synthesizer`](examples/midi_synthesizer) | MIDI | audio | Input and output tracks need not be the same media type. |
-| [`ui_tester`](examples/ui_tester) | any | audio, MIDI, file | Every control, track, and output label type. Does no real processing. |
+- [`pitch_shifter`](examples/pitch_shifter) is audio in and audio out, the minimal app: one track
+  in, one control, and one track out.
+- [`midi_pitch_shifter`](examples/midi_pitch_shifter) is the same shape, on MIDI tracks.
+- [`midi_synthesizer`](examples/midi_synthesizer) takes MIDI and returns audio, so its tracks differ
+  in media type.
+- [`ui_tester`](examples/ui_tester) takes anything and returns audio, MIDI, and a file: every
+  control, track, and output label type, with no real processing.
 
 All four share the structure described above. Start from whichever template matches your media types.
 
