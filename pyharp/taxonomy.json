@@ -143,5 +143,19 @@
             "name": "Utility",
             "subcategories": []
         }
+    ],
+    "domains": [
+        {
+            "id": "music",
+            "name": "Music"
+        },
+        {
+            "id": "speech",
+            "name": "Speech"
+        },
+        {
+            "id": "general-audio",
+            "name": "General Audio"
+        }
     ]
 }

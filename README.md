@@ -97,6 +97,7 @@ model_card = ModelCard(
 HARP's Home tab lists models by category and makes them searchable. It categorizes each model by the `tags` of its model card, which can mix the following:
 
 - **`Category` or `Subcategory`**, _e.g._, `Subcategory.STEM_SEPARATION`: where the model sits in the taxonomy below. List the most specific entries that apply (a `Subcategory` implies its `Category`), and several if the model spans several tasks.
+- **`Domain`**, _e.g._, `Domain.SPEECH`: the kind of audio the model is for, as `MUSIC`, `SPEECH`, or `GENERAL_AUDIO`, and more than one where several apply. The Home tab filters by it.
 - **`SampleRate`**, _e.g._, `SampleRate(44100)`: the sample rate of the model.
 - **`Channels`**, _e.g._, `Channels(2)`: the number of audio channels of the model, tagged as `mono`, `stereo`, or the count itself (_e.g._, `channels:6`).
 - **A string**, _e.g._, `"example"`: a custom tag, such as the model family or a notable feature.
@@ -111,6 +112,8 @@ The taxonomy is defined in [`taxonomy.json`](pyharp/taxonomy.json), shared by HA
 - **Separation** (`Category.SEPARATION`): `STEM_SEPARATION`, `TARGET_SOURCE_EXTRACTION`
 - **Analysis** (`Category.ANALYSIS`): `MUSIC_ANALYSIS`, `SPEECH_ANALYSIS`, `GENERAL_AUDIO_ANALYSIS`
 - **Utility** (`Category.UTILITY`): no subcategories. Marks a tool rather than an AI model, _e.g._, a DSP effect or a test app.
+
+The taxonomy also defines the three domains, `Domain.MUSIC`, `Domain.SPEECH`, and `Domain.GENERAL_AUDIO`, which cut across the categories.
 
 Tags for what the model takes in and gives back are not added to the model card, since `build_endpoint` infers them from the [Gradio components](#gradio-endpoint), as `input:` and `output:` tags naming the kinds of data it handles: `audio`, `midi`, `file` (a generic file), `text` (an input only), or `labels` (an output only). Components that would produce the same tag are tagged once, so two audio inputs give a single `input:audio`.
 

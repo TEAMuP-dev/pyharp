@@ -25,6 +25,7 @@ import json
 __all__ = [
     'Category',
     'Subcategory',
+    'Domain',
     'SampleRate',
     'Channels',
     'Modality',
@@ -55,6 +56,16 @@ class _Subcategory(Enum):
         return f"{SUBCATEGORY_KEY}:{self.id}"
 
 
+class _Domain(Enum):
+    def __init__(self, taxonomy_id: str, display_name: str):
+        self.id = taxonomy_id
+        self.display_name = display_name
+
+    @property
+    def tag(self) -> str:
+        return f"{DOMAIN_KEY}:{self.id}"
+
+
 def _member_name(taxonomy_id: str) -> str:
     return taxonomy_id.upper().replace("-", "_")
 
@@ -75,6 +86,12 @@ Subcategory = _Subcategory("Subcategory", [
     for c in _TAXONOMY["categories"] for s in c["subcategories"]
 ])
 
+# The kind of audio a model is for, e.g. Domain.SPEECH, independent of its category. A model
+# may name several, and HARP's Home tab filters by them.
+Domain = _Domain("Domain", [
+    (_member_name(d["id"]), (d["id"], d["name"])) for d in _TAXONOMY.get("domains", [])
+])
+
 
 class Modality(Enum):
     """
@@ -91,6 +108,7 @@ class Modality(Enum):
 
 CATEGORY_KEY = "category"
 SUBCATEGORY_KEY = "subcategory"
+DOMAIN_KEY = "domain"
 INPUT_KEY = "input"
 OUTPUT_KEY = "output"
 SAMPLE_RATE_KEY = "sample-rate"
@@ -140,7 +158,7 @@ class Channels:
 
 
 # Anything that can go in a model card's tag list
-Tag = Union[str, Category, Subcategory, SampleRate, Channels]
+Tag = Union[str, Category, Subcategory, Domain, SampleRate, Channels]
 
 
 def _check_unique_ids():
@@ -186,6 +204,9 @@ def validate_tag(tag: str) -> str:
     if key == SUBCATEGORY_KEY and value not in {s.id for s in Subcategory}:
         raise ValueError(f"Unknown subcategory in tag '{tag}'. Choose one of "
                          f"{[s.id for s in Subcategory]}.")
+    if key == DOMAIN_KEY and value not in {d.id for d in Domain}:
+        raise ValueError(f"Unknown domain in tag '{tag}'. Choose one of "
+                         f"{[d.id for d in Domain]}.")
     if key in (INPUT_KEY, OUTPUT_KEY):
         raise ValueError(f"Tag '{tag}' is inferred from the Gradio components passed to "
                          f"build_endpoint, so it cannot be given by hand.")
@@ -229,8 +250,9 @@ def build_tags(tags: Iterable[Tag] = (), inferred: Iterable[str] = ()) -> List[s
 
     Args:
         tags (Iterable[Tag]): The model card's tags. A Category or Subcategory places the
-            model in the taxonomy (a subcategory implies its category), SampleRate and
-            Channels describe the audio it works with, and a string is a custom tag.
+            model in the taxonomy (a subcategory implies its category), a Domain names the
+            kind of audio it is for, SampleRate and Channels describe the audio it works
+            with, and a string is a custom tag.
         inferred (Iterable[str]): Tags for the model's inputs and outputs, as inferred from
             its Gradio components (see io_tag).
 
@@ -247,15 +269,15 @@ def build_tags(tags: Iterable[Tag] = (), inferred: Iterable[str] = ()) -> List[s
     for tag in tags:
         if isinstance(tag, Subcategory):
             taxonomy += [tag.category.tag, tag.tag]
-        elif isinstance(tag, Category):
+        elif isinstance(tag, (Category, Domain)):
             taxonomy.append(tag.tag)
         elif isinstance(tag, (SampleRate, Channels)):
             others.append(tag.tag)
         elif isinstance(tag, str):
             others.append(validate_tag(tag))
         else:
-            raise ValueError(f"'{tag}' is not a Category, Subcategory, SampleRate, Channels, "
-                             f"or string.")
+            raise ValueError(f"'{tag}' is not a Category, Subcategory, Domain, SampleRate, "
+                             f"Channels, or string.")
 
     # Preserve order while dropping repeats (e.g., a category implied twice)
     return list(dict.fromkeys(taxonomy + list(inferred) + others))
