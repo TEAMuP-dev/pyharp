@@ -5,10 +5,10 @@
   </picture>
 </a>
 
-PyHARP is the **companion package** of [HARP](https://github.com/TEAMuP-dev/HARP), an application that brings machine learning models into Digital Audio Workstations (DAWs). It wraps **arbitrary Python code** for audio and MIDI processing in [Gradio](https://www.gradio.app) endpoints that HARP can reach, so that a model too demanding for common hardware runs remotely and asynchronously. HARP runs standalone or within a DAW that supports external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). [Our website](https://harp.tools/content/install/) covers installing HARP and setting it up with each operating system and DAW.
+PyHARP is the **companion package** of [HARP](https://github.com/TEAMuP-dev/HARP), an application that brings machine learning models into Digital Audio Workstations (DAWs). It wraps **arbitrary Python code** for audio and MIDI processing in [Gradio](https://www.gradio.app) endpoints that HARP can reach, so that a model too demanding for common hardware runs remotely and asynchronously. HARP runs standalone or within a DAW that supports external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). [Our website](https://harp.tools/download/) covers installing HARP and setting it up with each operating system and DAW.
 
 This README documents how to build a PyHARP app, and our website walks through
-[deploying a model](https://harp.tools/content/pyharp_docs/setup.html) step by step,
+[deploying a model](https://harp.tools/pyharp/setup.html) step by step,
 with two examples taken from the models we host. HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md) are the conventions our models follow, and cover what to decide while building one: licensing, naming and tagging a model, sourcing weights, reporting errors, preserving the input format, and choosing hardware.
 
 ## Table of Contents
@@ -318,7 +318,7 @@ if __name__ == "__main__":
 
 <!-- TODO: screenshot. The pitch shifter open in HARP, showing the input track, the slider, and the
      output track that its components declare, beside the Gradio page of the same app.
-![The components of the pitch shifter, as HARP draws them](https://harp.tools/images/pitch-shifter-in-harp.png)
+![The components of the pitch shifter, as HARP displays them](https://harp.tools/images/pitch-shifter-in-harp.png)
 -->
 
 A few requirements are easy to miss:
@@ -458,11 +458,11 @@ GUI elements corresponding to these labels will appear on the respective output 
 
 <!-- TODO: screenshot. An output track in HARP with labels drawn over it, and the mouse over one
      label, whose description is shown in the instructions panel.
-![Output labels drawn over an output track in HARP](https://harp.tools/images/output-labels.png)
+![Output labels shown over an output track in HARP](https://harp.tools/images/output-labels.png)
 -->
 
 ## Examples
-We provide several examples of how to create a PyHARP app under the `examples/` directory. The first three are minimal templates covering each combination of input and output media. The fourth is a reference for every supported component. You can also find a list of models already deployed as PyHARP apps on [our website](https://harp.tools/content/usage/models.html).
+We provide several examples of how to create a PyHARP app under the `examples/` directory. The first three are minimal templates covering each combination of input and output media. The fourth is a reference for every supported component. The Home tab of HARP lists every model already deployed as a PyHARP app, and [our website](https://harp.tools/usage/models.html) highlights some of them.
 
 - [`pitch_shifter`](examples/pitch_shifter) is audio in and audio out, the minimal app: one track
   in, one control, and one track out.
@@ -502,7 +502,7 @@ The Gradio app can be loaded in HARP as a custom path using either the local or 
 The share links Gradio generates expire after a week. If you'd like to keep an endpoint active and share it with other users, you can use [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely. If you already have your own GPU machine, you can instead host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
 
 ## Gradio Spaces
-This is the most convenient solution for hosting a PyHARP app. Hugging Face requires a paid plan to create a Gradio Space (PRO for a personal account, Team or Enterprise for an organization), with one exception: any account in good standing can host up to two Spaces on [ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu), which lends a GPU to each request at no charge to the owner of the Space. Our website [compares the options](https://harp.tools/content/hosting/spaces.html).
+This is the most convenient solution for hosting a PyHARP app. Hugging Face requires a paid plan to create a Gradio Space (PRO for a personal account, Team or Enterprise for an organization), with one exception: any account in good standing can host up to two Spaces on [ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu), which lends a GPU to each request at no charge to the owner of the Space. Our website [compares the options](https://harp.tools/hosting/spaces.html).
 
 <!-- TODO: screenshot. The Hugging Face "Create a new Space" form, with the Gradio SDK, the blank
      template, and the hardware selected.
@@ -535,7 +535,7 @@ git push -u origin main
      ```
      git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.2
      ```
-     A released tag never moves, since a fix ships as a new patch release instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the URL of the tag through later rebuilds and factory reboots alike.
+     A released tag never moves, since a fix is released as a new patch instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the URL of the tag through later rebuilds and factory reboots alike.
 
      Note that you do not have to include the `gradio` package in this file. Do include `spaces`, which ZeroGPU needs and which does nothing on other hardware ([see below](#zerogpu)).
 
