@@ -203,11 +203,12 @@ PyHARP loads and saves audio with Descript's [audiotools](https://github.com/des
 
 ### Worker Processes
 
-`process_fn` runs in a separate worker process, so that pressing Cancel in HARP stops the work rather
-than leaving it to run to completion server-side. `build_endpoint` also takes `timeout_s` (default
-`900`, _i.e._ 15 minutes), after which a job is stopped the same way. Increase it for models that
-legitimately run longer. One job runs at a time, which `build_endpoint` enforces by giving the
-process event a `concurrency_limit` of `1`, and starting a new job stops whatever was running.
+`process_fn` runs in a separate worker process, so that selecting the `Cancel` button in HARP stops
+the work rather than leaving it to run to completion server-side. `build_endpoint` also takes
+`timeout_s` (default `900`, _i.e._ 15 minutes), after which a job is stopped the same way. Increase
+it for models that legitimately run longer. One job runs at a time, which `build_endpoint` enforces
+by giving the process event a `concurrency_limit` of `1`, and starting a new job stops whatever was
+running.
 
 The worker is **reused between requests**, so whatever your `app.py` loads on the way to `process_fn`
 is loaded once rather than once per job. It starts as soon as `build_endpoint` is called, so that
