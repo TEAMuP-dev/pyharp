@@ -314,7 +314,7 @@ if __name__ == "__main__":
             process_fn=process_fn,
         )
 
-    demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True, ssr_mode=False)
 ```
 
 <!-- TODO: screenshot. The pitch shifter open in HARP, showing the input track, the slider, and the
@@ -327,6 +327,7 @@ A few requirements are easy to miss:
 - The order of `input_components` must match the arguments of `process_fn`, and the order of `output_components` must match its return values.
 - `demo.queue()` must be called, otherwise an ongoing job cannot be canceled from HARP.
 - `show_error=True` lets HARP report why a job failed ([see below](#error-reporting)).
+- `ssr_mode=False` turns off server-side rendering, which Hugging Face enables for a Space and whose launch check can crash the app as it starts. HARP never loads the page it renders.
 - Tracks and generic files can go in either position, but a GUI control is an input only and a `gr.JSON` of labels is an output only. `build_endpoint` refuses the other arrangement, since HARP has no matching component. Carry anything else as a generic `gr.File`.
 
 Audio and File components accept two PyHARP extensions: `.harp_required(False)` marks an input as optional, and `.set_info("...")` attaches instructions for HARP to display. Our [UI tester](examples/ui_tester/app.py) shows both. Only track and generic file inputs can be made optional. GUI controls always carry a value.
