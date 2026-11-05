@@ -71,10 +71,7 @@ A PyHARP app is a `ModelCard` describing the model, a `process_fn` doing the wor
 ## Model Card
 The model card gives the name, author, description, and tags of a PyHARP app. HARP reads it when the model is loaded, showing the description in the model tab and using the tags to categorize it.
 
-<!-- TODO: screenshot. The top of a model tab in HARP, showing the name, author, description, and
-     badges that its model card provides.
 ![A model card, as HARP shows it at the top of the model tab](https://harp.tools/images/model-card.png)
--->
 
 The following model card corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
@@ -265,10 +262,7 @@ The main Gradio code block for a PyHARP app consists of defining the input and o
 
 The Gradio page also carries HARP's own widgets. The "View Controls" button and the JSON box of control data exist only so that HARP can read the interface of the model, so they are hidden by default. Pass `show_controls=True` to `build_endpoint` if you want to inspect them. The "Process" and "Cancel" buttons are always shown, since they are useful to someone running the model from the page directly. HARP is unaffected either way, since it calls the endpoints rather than clicking the buttons.
 
-<!-- TODO: screenshot. The Gradio page of an app launched with show_controls=True, after clicking
-     "View Controls", with the card and its tags showing in the JSON box.
 ![The View Controls button and the control data it shows](https://harp.tools/images/view-controls.png)
--->
 
 The following endpoint code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
@@ -317,10 +311,7 @@ if __name__ == "__main__":
     demo.queue().launch(share=True, show_error=True, pwa=True, ssr_mode=False)
 ```
 
-<!-- TODO: screenshot. The pitch shifter open in HARP, showing the input track, the slider, and the
-     output track that its components declare, beside the Gradio page of the same app.
 ![The components of the pitch shifter, as HARP displays them](https://harp.tools/images/pitch-shifter-in-harp.png)
--->
 
 A few requirements are easy to miss:
 - Every `gr.Audio` component must set `type="filepath"`.
@@ -458,10 +449,7 @@ if __name__ == "__main__":
 
 After processing, HARP displays these labels over the corresponding output tracks.
 
-<!-- TODO: screenshot. An output track in HARP with labels shown over it, and the mouse over one
-     label, whose description is shown in the instructions panel.
 ![Output labels shown over an output track in HARP](https://harp.tools/images/output-labels.png)
--->
 
 ## Examples
 The `examples/` directory holds four example apps. The first three are minimal templates covering each combination of input and output media. The fourth is a reference for every supported component. The Home tab of HARP lists every model already deployed as a PyHARP app, and [our website](https://harp.tools/usage/models.html) highlights some of them.
@@ -490,15 +478,11 @@ python examples/pitch_shifter/app.py
 
 The app serves a local endpoint at `http://localhost:<PORT>`, and, since the examples launch with `share=True`, a public share link at `https://<RANDOM_ID>.gradio.live/`.
 
-<!-- TODO: screenshot. The command line output after running app.py, with the local and public URLs.
 ![Command line output after running app.py, showing the local and public Gradio URLs](https://harp.tools/images/example-terminal.png)
--->
 
 HARP opens the app as a custom path at either URL.
 
-<!-- TODO: screenshot. HARP's Custom Path window, with the URL of a running app entered.
 ![Loading a Gradio endpoint in HARP by entering its URL as a custom path](https://harp.tools/images/custom-path-dialog.png)
--->
 
 # Hosting Endpoints
 A Gradio share link expires after a week. To keep an app available to other users, host it on [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces-overview) or a similar service. To use a GPU machine of your own, host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
@@ -506,10 +490,7 @@ A Gradio share link expires after a week. To keep an app available to other user
 ## Gradio Spaces
 A Space needs the least setup of the hosting options. Hosting a Gradio Space takes a paid plan (PRO for a personal account, Team or Enterprise for an organization), with one exception: a free account that is 30 days old and has a verified email can host up to two Spaces on [ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu), which allocates a GPU to each request and bills its time to the allowance of the caller rather than to the owner of the Space. Our website [compares the plans](https://harp.tools/hosting/spaces.html).
 
-<!-- TODO: screenshot. The Hugging Face "Create a new Space" form, with the Gradio SDK, the blank
-     template, and the hardware selected.
 ![Creating a Gradio Space on Hugging Face](https://harp.tools/images/space-create.png)
--->
 
 1. Create a new [Hugging Face Space](https://huggingface.co/new-space).
 2. Choose Gradio as the SDK along with the blank template.
@@ -528,6 +509,8 @@ git push -u origin main
    - `README.md`
 
      Set __sdk_version__ to __6.24.0__, the recommended version of `gradio`. This is what the Space actually deploys with, so it must be set even though `gradio` is not listed in `requirements.txt`. Note that Gradio `4.x` and earlier are incompatible with HARP, and that versions before `6.13.0` cannot report error messages (see [Installing](#installing)).
+
+     Set __python_version__ to __3.10__ or __3.12__ on ZeroGPU, which runs no other version of Python.
 
      Optionally, add a __short_description__ and the __tags__ of the model card, which HARP can show before the model is loaded (see [Listing on the Home Tab](#listing-on-the-home-tab)).
 
@@ -928,9 +911,6 @@ tags:
   - pitch shift
 ```
 
-<!-- TODO: screenshot. A card on HARP's Home tab for a Space that has not been loaded, showing the
-     short_description and tags from its README.
 ![A Space listed on HARP's Home tab by its README metadata](https://harp.tools/images/home-tab-card.png)
--->
 
 Both fields are optional. A Space without them is still listed, under "Other" and by name alone, and once it is loaded, HARP uses its model card as usual. They are only relevant to Spaces: an app run locally or self-hosted is opened as a custom path, and needs nothing beyond its model card.
