@@ -20,15 +20,18 @@ from pyharp.core import (  # noqa: E402
     HarpNumberBox,
     HarpSlider,
     HarpTextBox,
+    HarpTextTrack,
     HarpToggle,
     get_declared_formats,
     get_harp_component,
     get_io_tags,
     is_midi_file,
+    is_text_file,
 )
 from pyharp.tags import INPUT_KEY, OUTPUT_KEY  # noqa: E402
 
 MIDI_TYPES = [".mid", ".midi"]
+TEXT_TYPES = [".txt"]
 
 
 # --------------------------------------------------------------------------------
@@ -72,6 +75,37 @@ def test_midi_file_types_make_a_track_rather_than_a_file_picker():
 def test_either_midi_extension_is_enough():
     assert is_midi_file(gr.File(type="filepath", file_types=[".mid"]))
     assert is_midi_file(gr.File(type="filepath", file_types=[".midi"]))
+
+
+def test_a_text_only_file_makes_a_text_track():
+    assert is_text_file(gr.File(type="filepath", file_types=TEXT_TYPES))
+    assert isinstance(get_harp_component(
+        gr.File(type="filepath", file_types=TEXT_TYPES)), HarpTextTrack)
+
+
+def test_the_text_extension_is_matched_whatever_its_case():
+    assert is_text_file(gr.File(type="filepath", file_types=[".TXT"]))
+
+
+def test_text_alongside_other_formats_stays_a_file_picker():
+    # A component offering .txt among several formats is a file picker, and
+    # reclassifying it would change how an existing deployment renders
+    mixed = gr.File(type="filepath", file_types=[".txt", ".csv", ".json"])
+    assert not is_text_file(mixed)
+    assert isinstance(get_harp_component(mixed), HarpFileComponent)
+
+
+def test_a_text_track_is_tagged_by_the_data_it_carries():
+    # Text, not "file/txt": the modality names the kind of data, and the one
+    # extension is implied by it, as .mid is for a MIDI track
+    cmp = gr.File(type="filepath", file_types=TEXT_TYPES)
+    assert get_io_tags(INPUT_KEY, [cmp], [get_harp_component(cmp)]) == ["input:text"]
+    assert get_io_tags(OUTPUT_KEY, [cmp], [get_harp_component(cmp)]) == ["output:text"]
+
+
+def test_a_text_track_declares_no_format():
+    assert get_declared_formats(
+        gr.File(type="filepath", file_types=TEXT_TYPES), is_output=True) == []
 
 
 def test_a_track_is_required_unless_marked_otherwise():

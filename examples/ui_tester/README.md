@@ -19,6 +19,7 @@ tags:
   - output:midi
   - output:labels
   - output:file
+  - output:text
   - example
   - test
 ---
