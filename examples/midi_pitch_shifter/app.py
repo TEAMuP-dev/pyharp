@@ -90,4 +90,4 @@ if __name__ == "__main__":
             process_fn=process_fn,
         )
 
-    demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True, ssr_mode=False)

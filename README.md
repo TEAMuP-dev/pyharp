@@ -5,10 +5,10 @@
   </picture>
 </a>
 
-PyHARP is the **companion package** of [HARP](https://github.com/TEAMuP-dev/HARP), an application that brings machine learning models into Digital Audio Workstations (DAWs). It wraps **arbitrary Python code** for audio and MIDI processing in [Gradio](https://www.gradio.app) endpoints that HARP can reach, so that a model too demanding for common hardware runs remotely and asynchronously. HARP runs standalone or within a DAW that supports external sample editors (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). [Our website](https://harp.tools/content/install/) covers installing HARP and setting it up with each operating system and DAW.
+PyHARP is the **companion package** of [HARP](https://github.com/TEAMuP-dev/HARP), an application that brings machine learning models into Digital Audio Workstations (DAWs). It wraps **arbitrary Python code** for audio and MIDI processing in [Gradio](https://www.gradio.app) endpoints that HARP can reach, so that a model too demanding for common hardware runs remotely and asynchronously. HARP runs as a standalone application or as an external editor beside a DAW (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). [Our website](https://harp.tools/download/) covers installing HARP and setting it up with each operating system and DAW.
 
 This README documents how to build a PyHARP app, and our website walks through
-[deploying a model](https://harp.tools/content/pyharp_docs/setup.html) step by step,
+[deploying a model](https://harp.tools/pyharp/setup.html) step by step,
 with two examples taken from the models we host. HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md) are the conventions our models follow, and cover what to decide while building one: licensing, naming and tagging a model, sourcing weights, reporting errors, preserving the input format, and choosing hardware.
 
 ## Table of Contents
@@ -69,12 +69,9 @@ The worker tests start real processes and wait on real timeouts, so the suite ta
 A PyHARP app is a `ModelCard` describing the model, a `process_fn` doing the work, and a `gr.Blocks` block wiring the two together through `build_endpoint`. The sections below cover each piece in turn, and [Examples](#examples) puts them together into complete, runnable apps.
 
 ## Model Card
-The model card defines various attributes of a PyHARP app to help users understand its intended usage. HARP reads it when the model is loaded, showing the description in the model tab and using the tags to categorize it.
+The model card gives the name, author, description, and tags of a PyHARP app. HARP reads it when the model is loaded, showing the description in the model tab and using the tags to categorize it.
 
-<!-- TODO: screenshot. The top of a model tab in HARP, showing the name, author, description, and
-     badges that its model card provides.
 ![A model card, as HARP shows it at the top of the model tab](https://harp.tools/images/model-card.png)
--->
 
 The following model card corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
@@ -199,15 +196,16 @@ The function takes two arguments:
 and returns:
 - `output_audio_path`: the filepath of the processed audio
 
-Note that by default PyHARP uses the [audiotools](https://github.com/descriptinc/audiotools) library from Descript (installation instructions can be found [here](https://github.com/descriptinc/audiotools#installation)) to load and save audio, but any standard method will work.
+PyHARP loads and saves audio with Descript's [audiotools](https://github.com/descriptinc/audiotools) by default, but any audio library works.
 
 ### Worker Processes
 
-`process_fn` runs in a separate worker process, so that pressing Cancel in HARP stops the work rather
-than leaving it to run to completion server-side. `build_endpoint` also takes `timeout_s` (default
-`900`, _i.e._ 15 minutes), after which a job is stopped the same way. Increase it for models that
-legitimately run longer. One job runs at a time, which `build_endpoint` enforces by giving the
-process event a `concurrency_limit` of `1`, and starting a new job stops whatever was running.
+`process_fn` runs in a separate worker process, so that selecting the `Cancel` button in HARP stops
+the work rather than leaving it to run to completion server-side. `build_endpoint` also takes
+`timeout_s` (default `900`, _i.e._ 15 minutes), after which a job is stopped the same way. Increase
+it for models that legitimately run longer. One job runs at a time, which `build_endpoint` enforces
+by giving the process event a `concurrency_limit` of `1`, and starting a new job stops whatever was
+running.
 
 The worker is **reused between requests**, so whatever your `app.py` loads on the way to `process_fn`
 is loaded once rather than once per job. It starts as soon as `build_endpoint` is called, so that
@@ -252,22 +250,19 @@ A few smaller notes:
   to `process_fn`, and nothing else of the request reaches the worker.
 
 ## Pre-Trained Models
-If you want to build an endpoint that utilizes a pre-trained model, we recommend the following:
-- Load the model outside of `process_fn`, so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Load it under `if __name__ != "__main__":`, which only the [worker](#worker-processes) runs, since it imports `app.py` under another name. The server never runs `process_fn`, so a model loaded at the top level would be held twice, and two processes downloading the same file at once can read it half written. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)). Note that a worker is replaced if a job has to be killed to cancel it ([see above](#worker-processes)).
-- Fetch model weights from where they are already published rather than copying them into your app repository. `huggingface_hub.hf_hub_download` covers a model on the Hub, and many projects ship their own downloader. Pin a revision so the app does not change behavior when upstream moves.
-- Commit weights into the repository only for small assets with no home of their own. Note that these cannot be committed to Git directly (see [Binary Files](#binary-files)).
+An app that uses a pre-trained model should follow these practices:
+- Load the model outside of `process_fn`, so that it is only initialized once. Doing it inside would repeat the cost on every request, which usually dominates the runtime. Load it under `if __name__ != "__main__":`, which only the [worker](#worker-processes) runs, since it imports `app.py` under another name. The server never runs `process_fn`, so a model loaded at the top level would be held twice, and two processes downloading the same file at once can read it half written. Our [MIDI synthesizer](examples/midi_synthesizer/app.py) example demonstrates this with its soundfont, and the same applies to moving weights onto a GPU ([see below](#self-hosted-endpoints)). A worker is replaced if a job has to be killed to cancel it ([see above](#worker-processes)).
+- Fetch model weights from where they are already published rather than copying them into your app repository. `huggingface_hub.hf_hub_download` covers a model on the Hub, and many projects include their own downloader. Pin a revision so the app does not change behavior when upstream moves.
+- Commit weights into the repository only for small assets with no home of their own. These cannot be committed to Git directly (see [Binary Files](#binary-files)).
 
 HARP's [deployment guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#model-weights) cover the other options, including storage buckets for very large weight sets.
 
 ## Gradio Endpoint
-The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. Our `build_endpoint` function connects these components to the I/O of `process_fn` and extracts HARP-readable metadata from the model card and components to be embedded within the endpoint. Currently, HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a `gr.File` adds `input:midi` or `output:midi` where it declares MIDI file types and `input:file` or `output:file` otherwise, a `gr.Textbox` adds `input:text`, and a `gr.JSON` carrying labels adds `output:labels`.
+The main Gradio code block for a PyHARP app consists of defining the input and output [Gradio Components](https://www.gradio.app/docs/gradio/introduction) and launching the endpoint. `build_endpoint` connects these components to the inputs and outputs of `process_fn`, and serves the model card and a description of each component through the `controls` endpoint, which HARP reads. HARP supports the [Slider](https://www.gradio.app/docs/gradio/slider), [Checkbox](https://www.gradio.app/docs/gradio/checkbox), [Number](https://www.gradio.app/docs/gradio/number), [Dropdown](https://www.gradio.app/docs/gradio/dropdown), and [Textbox](https://www.gradio.app/docs/gradio/textbox) components as GUI controls. The components also tag the model with what it takes in and gives back ([see above](#tags)): a `gr.Audio` adds `input:audio` or `output:audio`, a `gr.File` adds `input:midi` or `output:midi` where it declares MIDI file types and `input:file` or `output:file` otherwise, a `gr.Textbox` adds `input:text`, and a `gr.JSON` carrying labels adds `output:labels`.
 
 The Gradio page also carries HARP's own widgets. The "View Controls" button and the JSON box of control data exist only so that HARP can read the interface of the model, so they are hidden by default. Pass `show_controls=True` to `build_endpoint` if you want to inspect them. The "Process" and "Cancel" buttons are always shown, since they are useful to someone running the model from the page directly. HARP is unaffected either way, since it calls the endpoints rather than clicking the buttons.
 
-<!-- TODO: screenshot. The Gradio page of an app launched with show_controls=True, after clicking
-     "View Controls", with the card and its tags showing in the JSON box.
 ![The View Controls button and the control data it shows](https://harp.tools/images/view-controls.png)
--->
 
 The following endpoint code corresponds to our [pitch shifter](examples/pitch_shifter/app.py) example:
 ```python
@@ -313,22 +308,20 @@ if __name__ == "__main__":
             process_fn=process_fn,
         )
 
-    demo.queue().launch(share=True, show_error=True, pwa=True)
+    demo.queue().launch(share=True, show_error=True, pwa=True, ssr_mode=False)
 ```
 
-<!-- TODO: screenshot. The pitch shifter open in HARP, showing the input track, the slider, and the
-     output track that its components declare, beside the Gradio page of the same app.
-![The components of the pitch shifter, as HARP draws them](https://harp.tools/images/pitch-shifter-in-harp.png)
--->
+![The components of the pitch shifter, as HARP displays them](https://harp.tools/images/pitch-shifter-in-harp.png)
 
 A few requirements are easy to miss:
 - Every `gr.Audio` component must set `type="filepath"`.
 - The order of `input_components` must match the arguments of `process_fn`, and the order of `output_components` must match its return values.
 - `demo.queue()` must be called, otherwise an ongoing job cannot be canceled from HARP.
 - `show_error=True` lets HARP report why a job failed ([see below](#error-reporting)).
+- `ssr_mode=False` turns off server-side rendering, which Hugging Face enables for a Space and whose launch check can crash the app as it starts. HARP never loads the page it renders.
 - Tracks and generic files can go in either position, but a GUI control is an input only and a `gr.JSON` of labels is an output only. `build_endpoint` refuses the other arrangement, since HARP has no matching component. Carry anything else as a generic `gr.File`.
 
-Audio and File components accept two PyHARP extensions: `.harp_required(False)` marks an input as optional, and `.set_info("...")` attaches instructions for HARP to display. Both of these extensions are shown in our [UI tester](examples/ui_tester/app.py). Note that only track and generic file inputs can be made optional. GUI controls always carry a value.
+Audio and File components accept two PyHARP extensions: `.harp_required(False)` marks an input as optional, and `.set_info("...")` attaches instructions for HARP to display. Our [UI tester](examples/ui_tester/app.py) shows both. Only track and generic file inputs can be made optional. GUI controls always carry a value.
 
 ### Error Reporting
 Gradio only forwards the text of an exception when `show_error=True` is set or when the exception is a `gr.Error`. Without either, HARP can report only that an unspecified error occurred, so launch with `show_error=True` as above.
@@ -342,7 +335,7 @@ if signal.duration < 3:
 
 Convert what can be converted rather than refusing it. A model that runs at a fixed sample rate should resample its input and then restore the rate of the input ([see HARP's guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#preserving-the-input-format)).
 
-Note that `gr.Info` and `gr.Warning` never reach HARP. Gradio does not forward them on the endpoint HARP uses, so they appear only on the Gradio page.
+`gr.Info` and `gr.Warning` never reach HARP. Gradio does not forward them on the endpoint HARP uses, so they appear only on the Gradio page.
 
 ### Output File Names
 HARP tells results apart by their file names, which matters most in its media clipboard, where results from many runs and models sit side by side. `build_endpoint` therefore renames every file `process_fn` returns as `<model>_<output>`: the name on the model card and the label of the output component, followed by the extension of the file. For example, Open-Unmix would yield `open-unmix_vocals.wav`, and MusicGen would yield `musicgen_generated-music.wav`. HARP then adds the time each result arrives, which keeps the results of successive runs apart. Give each output component a label that describes what it holds, or pass `name_outputs=False` to keep the names `process_fn` sets.
@@ -395,10 +388,10 @@ if __name__ == "__main__":
         ...
 ```
 
-Note that by default PyHARP uses the [symusic](https://github.com/Yikai-Liao/symusic) package to load and save MIDI, but any standard method will work.
+PyHARP loads and saves MIDI with [symusic](https://github.com/Yikai-Liao/symusic) by default, but any MIDI library works.
 
 ## Output Labels
-In order to display output labels in HARP (which also tags the model with `output:labels`), you must define an output [JSON](https://www.gradio.app/docs/gradio/json) component and return our custom `LabelList` object in `process_fn`:
+To display labels in HARP, define an output [JSON](https://www.gradio.app/docs/gradio/json) component and return a `LabelList` from `process_fn`, which also tags the model with `output:labels`:
 ```python
 from pyharp import LabelList, AudioLabel, MidiLabel, OutputLabel, ...
 
@@ -454,59 +447,50 @@ if __name__ == "__main__":
         ...
 ```
 
-GUI elements corresponding to these labels will appear on the respective output tracks after processing in HARP.
+After processing, HARP displays these labels over the corresponding output tracks.
 
-<!-- TODO: screenshot. An output track in HARP with labels drawn over it, and the mouse over one
-     label, whose description is shown in the instructions panel.
-![Output labels drawn over an output track in HARP](https://harp.tools/images/output-labels.png)
--->
+![Output labels shown over an output track in HARP](https://harp.tools/images/output-labels.png)
 
 ## Examples
-We provide several examples of how to create a PyHARP app under the `examples/` directory. The first three are minimal templates covering each combination of input and output media. The fourth is a reference for every supported component. You can also find a list of models already deployed as PyHARP apps on [our website](https://harp.tools/content/usage/models.html).
+The `examples/` directory holds four example apps. The first three are minimal templates covering each combination of input and output media. The fourth is a reference for every supported component. The Home tab of HARP lists every model already deployed as a PyHARP app, and [our website](https://harp.tools/usage/models.html) highlights some of them.
 
-| Example | In | Out | Illustrates |
-| --- | --- | --- | --- |
-| [`pitch_shifter`](examples/pitch_shifter) | audio | audio | The minimal app: one track in, one control, one track out. |
-| [`midi_pitch_shifter`](examples/midi_pitch_shifter) | MIDI | MIDI | The same shape, on MIDI tracks. |
-| [`midi_synthesizer`](examples/midi_synthesizer) | MIDI | audio | Input and output tracks need not be the same media type. |
-| [`ui_tester`](examples/ui_tester) | any | audio, MIDI, file | Every control, track, and output label type. Does no real processing. |
+- [`pitch_shifter`](examples/pitch_shifter) is audio in and audio out, the minimal app: one track
+  in, one control, and one track out.
+- [`midi_pitch_shifter`](examples/midi_pitch_shifter) is the same shape, on MIDI tracks.
+- [`midi_synthesizer`](examples/midi_synthesizer) takes MIDI and returns audio, so its tracks differ
+  in media type.
+- [`ui_tester`](examples/ui_tester) takes anything and returns audio, MIDI, and a file: every
+  control, track, and output label type, with no real processing.
 
 All four share the structure described above. Start from whichever template matches your media types.
 
-In order to run an app, you will need to install its corresponding dependencies, including `gradio` and `pyharp`. For example, to install the dependencies for our [pitch shifter](examples/pitch_shifter) example:
+To run an app, install its dependencies, including `gradio` and `pyharp`, as for our [pitch shifter](examples/pitch_shifter) example:
 
 ```bash
 pip install -r examples/pitch_shifter/requirements.txt
 ```
 
-The app can then be run from the `app.py` script:
+Then run its `app.py`:
 
 ```bash
 python examples/pitch_shifter/app.py
 ```
 
-This will create a local Gradio endpoint at the URL `http://localhost:<PORT>`, as well as a forwarded public Gradio endpoint at the URL `https://<RANDOM_ID>.gradio.live/`.
+The app serves a local endpoint at `http://localhost:<PORT>`, and, since the examples launch with `share=True`, a public share link at `https://<RANDOM_ID>.gradio.live/`.
 
-<!-- TODO: screenshot. The command line output after running app.py, with the local and public URLs.
 ![Command line output after running app.py, showing the local and public Gradio URLs](https://harp.tools/images/example-terminal.png)
--->
 
-The Gradio app can be loaded in HARP as a custom path using either the local or public URL.
+HARP opens the app as a custom path at either URL.
 
-<!-- TODO: screenshot. HARP's Custom Path window, with the URL of a running app entered.
 ![Loading a Gradio endpoint in HARP by entering its URL as a custom path](https://harp.tools/images/custom-path-dialog.png)
--->
 
 # Hosting Endpoints
-The share links Gradio generates expire after a week. If you'd like to keep an endpoint active and share it with other users, you can use [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces-overview) (similar hosting services are also available) to host your PyHARP app indefinitely. If you already have your own GPU machine, you can instead host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
+A Gradio share link expires after a week. To keep an app available to other users, host it on [Hugging Face Spaces](https://huggingface.co/docs/hub/spaces-overview) or a similar service. To use a GPU machine of your own, host the app there and reach it from HARP over an [SSH tunnel](#self-hosted-endpoints).
 
 ## Gradio Spaces
-This is the most convenient solution for hosting a PyHARP app. Hugging Face requires a paid plan to create a Gradio Space (PRO for a personal account, Team or Enterprise for an organization), with one exception: any account in good standing can host up to two Spaces on [ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu), which lends a GPU to each request at no charge to the owner of the Space. Our website [compares the options](https://harp.tools/content/hosting/spaces.html).
+A Space needs the least setup of the hosting options. Hosting a Gradio Space takes a paid plan (PRO for a personal account, Team or Enterprise for an organization), with one exception: a free account that is 30 days old and has a verified email can host up to two Spaces on [ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu), which allocates a GPU to each request and bills its time to the allowance of the caller rather than to the owner of the Space. Our website [compares the plans](https://harp.tools/hosting/spaces.html).
 
-<!-- TODO: screenshot. The Hugging Face "Create a new Space" form, with the Gradio SDK, the blank
-     template, and the hardware selected.
 ![Creating a Gradio Space on Hugging Face](https://harp.tools/images/space-create.png)
--->
 
 1. Create a new [Hugging Face Space](https://huggingface.co/new-space).
 2. Choose Gradio as the SDK along with the blank template.
@@ -526,6 +510,8 @@ git push -u origin main
 
      Set __sdk_version__ to __6.24.0__, the recommended version of `gradio`. This is what the Space actually deploys with, so it must be set even though `gradio` is not listed in `requirements.txt`. Note that Gradio `4.x` and earlier are incompatible with HARP, and that versions before `6.13.0` cannot report error messages (see [Installing](#installing)).
 
+     Set __python_version__ to __3.10__ or __3.12__ on ZeroGPU, which runs no other version of Python.
+
      Optionally, add a __short_description__ and the __tags__ of the model card, which HARP can show before the model is loaded (see [Listing on the Home Tab](#listing-on-the-home-tab)).
 
    - `requirements.txt`
@@ -534,7 +520,7 @@ git push -u origin main
      ```
      git+https://github.com/TEAMuP-dev/pyharp.git@v0.4.2
      ```
-     A released tag never moves, since a fix ships as a new patch release instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the URL of the tag through later rebuilds and factory reboots alike.
+     A released tag never moves, since a fix is released as a new patch instead. Should one ever move, pin the commit it now names, because pip goes on serving the wheel it already built for the URL of the tag through later rebuilds and factory reboots alike.
 
      Note that you do not have to include the `gradio` package in this file. Do include `spaces`, which ZeroGPU needs and which does nothing on other hardware ([see below](#zerogpu)).
 
@@ -802,13 +788,13 @@ git push -u origin main
      ```
 
 ---
-Here are a few tips and best practices when dealing with Hugging Face Spaces:
-- Spaces operate based off of the files in the `main` branch
-- An [access token](https://huggingface.co/docs/hub/security-tokens) may be required to push commits to Hugging Face Spaces
-- A `.gitignore` file should be added to maintain repository orderliness (_e.g._, to ignore `_outputs`)
-- Pin the versions against which your app was tested, `numpy`, `torch`, and `torchaudio` included, so that a rebuild cannot change them. On ZeroGPU an exact `torch` pin must be a release it accepts, `2.8.0` or newer ([see HARP's guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#choosing-the-hardware)), or the Space stops before it starts
+A few more points apply to every Space:
+- A Space builds from the files on its `main` branch.
+- Pushing to a Space requires an [access token](https://huggingface.co/docs/hub/security-tokens) with write permission.
+- A `.gitignore` keeps generated files, such as `_outputs`, out of the repository.
+- Pin the versions against which your app was tested, `numpy`, `torch`, and `torchaudio` included, so that a rebuild cannot change them. On ZeroGPU an exact `torch` pin must be a release it accepts, `2.8.0` or newer ([see HARP's guidelines](https://github.com/TEAMuP-dev/HARP/blob/main/docs/DEPLOYMENT.md#choosing-the-hardware)), or the Space stops before it starts.
 
-For more information, please refer to the official documentation from Hugging Face about [Spaces](https://huggingface.co/docs/hub/spaces).
+The Hugging Face [documentation on Spaces](https://huggingface.co/docs/hub/spaces) covers the rest.
 
 ## Binary Files
 
@@ -898,13 +884,13 @@ Spaces are the quickest way to publish an app, but they cap the hardware you can
 
 The tunnel is what keeps the endpoint reachable. Closing it disconnects it from HARP.
 
-If you would rather expose the app directly instead of tunneling, launch it with `server_name="0.0.0.0"` (the API equivalent of Gradio's `--listen` flag) and use the hostname of the machine in HARP. Be aware that this makes the app reachable by anyone who can route to that host and port, with no authentication, so restrict it with a firewall or a VPN. Gradio's `auth` option is no substitute, since HARP cannot sign in to an app launched with it. Alternatively, `share=True` publishes a temporary public `gradio.live` URL that requires no network configuration at all, though it expires after a week.
+To expose the app directly rather than through a tunnel, launch it with `server_name="0.0.0.0"` (the API equivalent of Gradio's `--listen` flag) and use the hostname of the machine in HARP. This makes the app reachable by anyone who can route to that host and port, with no authentication, so restrict it with a firewall or a VPN. Gradio's `auth` option is no substitute, since HARP cannot sign in to an app launched with it. Alternatively, `share=True` publishes a temporary public `gradio.live` URL that requires no network configuration at all, though it expires after a week.
 
 ## Accessing Within HARP
 However a PyHARP app is hosted, it can be loaded in HARP as a custom path:
 
 - **Running locally**, use the local or forwarded URL printed on startup ([see above](#examples)), _e.g._ `http://localhost:7860` or `https://<RANDOM_ID>.gradio.live/`.
-- **Hosted on a Space**, use `https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>`, or just the shorthand `<USERNAME>/<SPACE_NAME>`. The Gradio and Docker Space options produce identical UIs and functionality.
+- **Hosted on a Space**, use `https://huggingface.co/spaces/<USERNAME>/<SPACE_NAME>`, or the shorthand `<USERNAME>/<SPACE_NAME>`. A Gradio Space and a Docker Space appear identically in HARP.
 - **Self-hosted behind an SSH tunnel**, use the forwarded address ([see above](#self-hosted-endpoints)), _e.g._ `http://localhost:7860`.
 
 ### Listing on the Home Tab
@@ -925,9 +911,6 @@ tags:
   - pitch shift
 ```
 
-<!-- TODO: screenshot. A card on HARP's Home tab for a Space that has not been loaded, showing the
-     short_description and tags from its README.
 ![A Space listed on HARP's Home tab by its README metadata](https://harp.tools/images/home-tab-card.png)
--->
 
 Both fields are optional. A Space without them is still listed, under "Other" and by name alone, and once it is loaded, HARP uses its model card as usual. They are only relevant to Spaces: an app run locally or self-hosted is opened as a custom path, and needs nothing beyond its model card.
