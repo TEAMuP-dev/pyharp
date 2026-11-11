@@ -2,11 +2,8 @@ from datetime import datetime
 from pathlib import Path
 
 
-__all__ = [
-    'get_timestamp',
-    'get_default_path',
-    'add_timestamp_to_path'
-]
+__all__ = ["get_timestamp", "get_default_path", "add_timestamp_to_path"]
+
 
 def get_timestamp(format=None):
     """
@@ -20,11 +17,12 @@ def get_timestamp(format=None):
     """
 
     if format is None:
-        format = '%m-%d-%Y_%H-%M-%S'
+        format = "%m-%d-%Y_%H-%M-%S"
 
     timestamp = datetime.now().strftime(format)
 
     return timestamp
+
 
 def get_default_path(ext=".wav"):
     """
@@ -46,6 +44,7 @@ def get_default_path(ext=".wav"):
     default_path = default_path.absolute().__str__()
 
     return default_path
+
 
 def add_timestamp_to_path(path_):
     """

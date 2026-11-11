@@ -9,6 +9,7 @@ import sys
 import gradio as gr
 import pytest
 
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyharp.core import (  # noqa: E402
@@ -28,6 +29,7 @@ from pyharp.core import (  # noqa: E402
 )
 from pyharp.tags import INPUT_KEY, OUTPUT_KEY  # noqa: E402
 
+
 MIDI_TYPES = [".mid", ".midi"]
 
 
@@ -36,18 +38,21 @@ MIDI_TYPES = [".mid", ".midi"]
 # --------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("component, expected", [
-    (lambda: gr.Audio(type="filepath"), HarpAudioTrack),
-    (lambda: gr.File(type="filepath", file_types=MIDI_TYPES), HarpMidiTrack),
-    (lambda: gr.File(type="filepath", file_types=[".json"]), HarpFileComponent),
-    (lambda: gr.File(type="filepath"), HarpFileComponent),
-    (lambda: gr.Slider(minimum=0, maximum=1), HarpSlider),
-    (lambda: gr.Number(value=1), HarpNumberBox),
-    (lambda: gr.Textbox(value="x"), HarpTextBox),
-    (lambda: gr.Checkbox(value=True), HarpToggle),
-    (lambda: gr.Dropdown(choices=["a", "b"]), HarpDropdown),
-    (lambda: gr.JSON(), HarpJSON),
-])
+@pytest.mark.parametrize(
+    "component, expected",
+    [
+        (lambda: gr.Audio(type="filepath"), HarpAudioTrack),
+        (lambda: gr.File(type="filepath", file_types=MIDI_TYPES), HarpMidiTrack),
+        (lambda: gr.File(type="filepath", file_types=[".json"]), HarpFileComponent),
+        (lambda: gr.File(type="filepath"), HarpFileComponent),
+        (lambda: gr.Slider(minimum=0, maximum=1), HarpSlider),
+        (lambda: gr.Number(value=1), HarpNumberBox),
+        (lambda: gr.Textbox(value="x"), HarpTextBox),
+        (lambda: gr.Checkbox(value=True), HarpToggle),
+        (lambda: gr.Dropdown(choices=["a", "b"]), HarpDropdown),
+        (lambda: gr.JSON(), HarpJSON),
+    ],
+)
 def test_each_supported_component_maps_to_its_harp_counterpart(component, expected):
     assert isinstance(get_harp_component(component()), expected)
 
@@ -152,7 +157,10 @@ def test_each_kind_of_data_is_tagged():
     ]
 
     assert tags_for(INPUT_KEY, components) == [
-        "input:audio", "input:midi", "input:file", "input:text"
+        "input:audio",
+        "input:midi",
+        "input:file",
+        "input:text",
     ]
 
 
@@ -183,6 +191,4 @@ def test_formats_keep_two_files_of_one_kind_apart():
 
 
 def test_an_audio_output_carries_the_format_it_fixes():
-    assert tags_for(OUTPUT_KEY, [gr.Audio(type="filepath", format="wav")]) == [
-        "output:audio/wav"
-    ]
+    assert tags_for(OUTPUT_KEY, [gr.Audio(type="filepath", format="wav")]) == ["output:audio/wav"]

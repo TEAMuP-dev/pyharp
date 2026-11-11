@@ -1,26 +1,23 @@
-from gradio.components.base import Component
-from gradio_client.utils import is_valid_file
-from dataclasses import dataclass, asdict, field
-from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
-
-import inspect
-import gradio as gr
 import functools
+import inspect
 import os
 import re
 import shutil
 import tempfile
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any, List, Optional, Tuple, Union
+
+import gradio as gr
+from gradio.components.base import Component
+from gradio_client.utils import is_valid_file
 
 from .tags import INPUT_KEY, OUTPUT_KEY, Modality, Tag, build_tags, io_tag
-
 from .worker import JobSupervisor
 
 
-__all__ = [
-    'ModelCard',
-    'build_endpoint'
-]
+__all__ = ["ModelCard", "build_endpoint"]
+
 
 @dataclass(kw_only=True)
 class ModelCard:
@@ -55,10 +52,12 @@ class HarpComponent:
     label: Optional[str]
     info: Optional[str]
 
+
 @dataclass
 class HarpFileBasedComponent(HarpComponent):
     # A track or generic file, which can be made optional
     required: bool
+
 
 @dataclass
 class HarpRangeComponent(HarpComponent):
@@ -69,36 +68,44 @@ class HarpRangeComponent(HarpComponent):
     step: Optional[float]
     value: Optional[float]
 
+
 @dataclass
 class HarpAudioTrack(HarpFileBasedComponent):
     type: str = "audio_track"
 
+
 @dataclass
 class HarpMidiTrack(HarpFileBasedComponent):
     type: str = "midi_track"
+
 
 @dataclass
 class HarpFileComponent(HarpFileBasedComponent):
     file_types: List[str]
     type: str = "generic_file"
 
+
 @dataclass
 class HarpSlider(HarpRangeComponent):
     type: str = "slider"
 
+
 @dataclass
 class HarpNumberBox(HarpRangeComponent):
     type: str = "number_box"
+
 
 @dataclass
 class HarpTextBox(HarpComponent):
     value: Optional[str]
     type: str = "text_box"
 
+
 @dataclass
 class HarpToggle(HarpComponent):
     value: bool
     type: str = "toggle"
+
 
 @dataclass
 class HarpDropdown(HarpComponent):
@@ -108,9 +115,11 @@ class HarpDropdown(HarpComponent):
     multiselect: bool = False
     type: str = "dropdown"
 
+
 @dataclass
 class HarpJSON(HarpComponent):
     type: str = "json"
+
 
 # Components HARP renders as input controls, so it cannot place one as an output
 CONTROL_COMPONENTS = (HarpSlider, HarpNumberBox, HarpTextBox, HarpToggle, HarpDropdown)
@@ -124,8 +133,9 @@ MODALITIES = {
     HarpMidiTrack: Modality.MIDI,
     HarpFileComponent: Modality.FILE,
     HarpTextBox: Modality.TEXT,
-    HarpJSON: Modality.LABELS
+    HarpJSON: Modality.LABELS,
 }
+
 
 def extend_gradio():
     """
@@ -138,7 +148,7 @@ def extend_gradio():
         `gr.File(...).set_info("Output MIDI.")`,
         etc.
     """
-    
+
     def harp_required(self, required=True):
         self.is_harp_required = required
         return self
@@ -153,14 +163,19 @@ def extend_gradio():
     Component.set_info = set_info
     Component.info = None
 
+
 def is_midi_file(gr_cmp: Component) -> bool:
     """
     Whether a Gradio component is a gr.File accepting MIDI, which HARP treats as a MIDI track
     rather than a generic file.
     """
 
-    return (isinstance(gr_cmp, gr.File) and gr_cmp.file_types is not None
-            and ('.mid' in gr_cmp.file_types or '.midi' in gr_cmp.file_types))
+    return (
+        isinstance(gr_cmp, gr.File)
+        and gr_cmp.file_types is not None
+        and (".mid" in gr_cmp.file_types or ".midi" in gr_cmp.file_types)
+    )
+
 
 def get_harp_component(gr_cmp: Component) -> HarpComponent:
     """
@@ -179,8 +194,9 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
     common = {"label": gr_cmp.label, "info": gr_cmp.info}
 
     if isinstance(gr_cmp, (gr.Audio, gr.File)):
-        assert gr_cmp.type == "filepath", \
+        assert gr_cmp.type == "filepath", (
             f"{type(gr_cmp).__name__} components must be of type filepath, not {gr_cmp.type}"
+        )
         common["required"] = gr_cmp.is_harp_required
 
     if isinstance(gr_cmp, gr.Audio):
@@ -191,21 +207,32 @@ def get_harp_component(gr_cmp: Component) -> HarpComponent:
         return HarpFileComponent(**common, file_types=gr_cmp.file_types or [])
     if isinstance(gr_cmp, (gr.Slider, gr.Number)):
         range_cls = HarpSlider if isinstance(gr_cmp, gr.Slider) else HarpNumberBox
-        return range_cls(**common, minimum=gr_cmp.minimum, maximum=gr_cmp.maximum,
-                         step=gr_cmp.step, value=gr_cmp.value)
+        return range_cls(
+            **common,
+            minimum=gr_cmp.minimum,
+            maximum=gr_cmp.maximum,
+            step=gr_cmp.step,
+            value=gr_cmp.value,
+        )
     if isinstance(gr_cmp, gr.Textbox):
         return HarpTextBox(**common, value=gr_cmp.value)
     if isinstance(gr_cmp, gr.Checkbox):
         return HarpToggle(**common, value=gr_cmp.value)
     if isinstance(gr_cmp, gr.Dropdown):
-        return HarpDropdown(**common, choices=gr_cmp.choices, value=gr_cmp.value,
-                            multiselect=bool(gr_cmp.multiselect))
+        return HarpDropdown(
+            **common,
+            choices=gr_cmp.choices,
+            value=gr_cmp.value,
+            multiselect=bool(gr_cmp.multiselect),
+        )
     if isinstance(gr_cmp, gr.JSON):
         return HarpJSON(**common)
 
     raise ValueError(
-        f"HARP does not support provided \'{gr_cmp}\' component. Please remove it or use an alternative."
+        f"HARP does not support provided '{gr_cmp}' component. "
+        "Please remove it or use an alternative."
     )
+
 
 def check_position(gr_cmp: Component, harp_cmp: HarpComponent, is_output: bool):
     """
@@ -327,12 +354,12 @@ def check_output_files(values, output_components: list):
         if not isinstance(gr_cmp, gr.File) or not gr_cmp.file_types or value is None:
             continue
 
-        name = f"\"{gr_cmp.label}\"" if gr_cmp.label else f"{index + 1}"
+        name = f'"{gr_cmp.label}"' if gr_cmp.label else f"{index + 1}"
 
-        for path in (value if isinstance(value, (list, tuple)) else [value]):
+        for path in value if isinstance(value, (list, tuple)) else [value]:
             if not is_valid_file(str(path), gr_cmp.file_types):
                 raise gr.Error(
-                    f"Output {name} returned \"{Path(str(path)).name}\", which is not one of "
+                    f'Output {name} returned "{Path(str(path)).name}", which is not one of '
                     f"its file types {gr_cmp.file_types}."
                 )
 
@@ -398,8 +425,11 @@ def rename_outputs(values, output_components: list, model_name: str):
             continue
 
         # An output without a label, or sharing it with another, is told apart by its position
-        label = labels[index] if labels[index] and labels.count(labels[index]) == 1 \
+        label = (
+            labels[index]
+            if labels[index] and labels.count(labels[index]) == 1
             else "-".join(filter(None, [labels[index], f"{index + 1}"]))
+        )
 
         if isinstance(value, (str, Path)):
             values[index] = renamed(value, label)
@@ -437,12 +467,14 @@ def enforce_output_file_types(process_fn: callable, output_components: list) -> 
         return process_fn
 
     if inspect.iscoroutinefunction(process_fn):
+
         @functools.wraps(process_fn)
         async def checked_process_fn(*args, **kwargs):
             values = await process_fn(*args, **kwargs)
             check_output_files(values, output_components)
             return values
     else:
+
         @functools.wraps(process_fn)
         def checked_process_fn(*args, **kwargs):
             values = process_fn(*args, **kwargs)
@@ -452,10 +484,16 @@ def enforce_output_file_types(process_fn: callable, output_components: list) -> 
     return checked_process_fn
 
 
-def build_endpoint(model_card: ModelCard, input_components: list, output_components: list,
-                   process_fn: callable, show_controls: bool = False,
-                   timeout_s: int = 900, warm_start: bool = True,
-                   name_outputs: bool = True) -> dict:
+def build_endpoint(
+    model_card: ModelCard,
+    input_components: list,
+    output_components: list,
+    process_fn: callable,
+    show_controls: bool = False,
+    timeout_s: int = 900,
+    warm_start: bool = True,
+    name_outputs: bool = True,
+) -> dict:
     """
     Builds a Gradio endpoint compatible with HARP.
 
@@ -560,15 +598,15 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         "tags": build_tags(
             model_card.tags,
             inferred=get_io_tags(INPUT_KEY, input_components, harp_inputs)
-                     + get_io_tags(OUTPUT_KEY, output_components, harp_outputs)
-        )
+            + get_io_tags(OUTPUT_KEY, output_components, harp_outputs),
+        ),
     }
 
     # The model card and controls never change, so they are assembled once
     model_info = {
         "card": card,
         "inputs": [asdict(cmp) for cmp in harp_inputs],
-        "outputs": [asdict(cmp) for cmp in harp_outputs]
+        "outputs": [asdict(cmp) for cmp in harp_outputs],
     }
 
     # Create a component to store the control data
@@ -577,10 +615,7 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
     # Create a button to fetch model control data
     controls_button = gr.Button("View Controls", visible=show_controls)
     controls_button.click(
-        fn=lambda: model_info,
-        inputs=[],
-        outputs=controls_data,
-        api_name="controls"
+        fn=lambda: model_info, inputs=[], outputs=controls_data, api_name="controls"
     )
 
     # Runs process_fn somewhere it can be stopped once it has started
@@ -627,24 +662,20 @@ def build_endpoint(model_card: ModelCard, input_components: list, output_compone
         # One job at a time, which the supervisor depends on (see pyharp.worker). Set
         # here rather than left to Gradio's default, which an app can raise through
         # queue() or GRADIO_DEFAULT_CONCURRENCY_LIMIT.
-        concurrency_limit=1
+        concurrency_limit=1,
     )
 
     # Create a button to cancel processing
     cancel_button = gr.Button("Cancel")
     cancel_button.click(
-        fn=cancel_handler,
-        inputs=[],
-        outputs=[],
-        api_name="cancel",
-        cancels=[process_event]
+        fn=cancel_handler, inputs=[], outputs=[], api_name="cancel", cancels=[process_event]
     )
 
     return {
         "controls_data": controls_data,
         "controls_button": controls_button,
         "process_button": process_button,
-        "cancel_button": cancel_button
+        "cancel_button": cancel_button,
     }
 
 

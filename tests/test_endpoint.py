@@ -11,11 +11,11 @@ from pathlib import Path
 import gradio as gr
 import pytest
 
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyharp import ModelCard, build_endpoint  # noqa: E402
-from pyharp.core import (check_output_files, enforce_output_file_types,  # noqa: E402
-                         rename_outputs)
+from pyharp.core import check_output_files, enforce_output_file_types, rename_outputs  # noqa: E402
 from pyharp.tags import Channels, Subcategory  # noqa: E402
 from pyharp.worker import JobSupervisor  # noqa: E402
 
@@ -153,6 +153,7 @@ def test_an_async_process_fn_is_refused():
     The worker returns a value, and a coroutine is an object instead, so this is said
     here rather than left to fail as a pickling error on the first request.
     """
+
     async def process_fn(value):
         return value
 
@@ -187,13 +188,16 @@ def test_a_plain_process_fn_is_accepted():
 # --------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("control", [
-    lambda: gr.Slider(minimum=0, maximum=1),
-    lambda: gr.Number(value=1),
-    lambda: gr.Textbox(value="x"),
-    lambda: gr.Checkbox(value=True),
-    lambda: gr.Dropdown(choices=["a"]),
-])
+@pytest.mark.parametrize(
+    "control",
+    [
+        lambda: gr.Slider(minimum=0, maximum=1),
+        lambda: gr.Number(value=1),
+        lambda: gr.Textbox(value="x"),
+        lambda: gr.Checkbox(value=True),
+        lambda: gr.Dropdown(choices=["a"]),
+    ],
+)
 def test_a_control_cannot_be_an_output(control):
     """
     HARP has no output component for a control, and would refuse the model by a type
@@ -217,11 +221,14 @@ def test_a_refusal_points_at_the_generic_file():
         endpoint(passthrough, inputs=[gr.JSON()])
 
 
-@pytest.mark.parametrize("component", [
-    lambda: gr.Audio(type="filepath"),
-    lambda: gr.File(type="filepath", file_types=[".mid", ".midi"]),
-    lambda: gr.File(type="filepath"),
-])
+@pytest.mark.parametrize(
+    "component",
+    [
+        lambda: gr.Audio(type="filepath"),
+        lambda: gr.File(type="filepath", file_types=[".mid", ".midi"]),
+        lambda: gr.File(type="filepath"),
+    ],
+)
 def test_tracks_and_files_are_accepted_in_either_position(component):
     assert endpoint(passthrough, inputs=[component()], outputs=[component()])
 
@@ -295,8 +302,9 @@ def touch(directory, name):
 def test_results_are_named_after_the_model_and_the_output(tmp_path):
     outputs = [gr.Audio(type="filepath", label="Vocals"), gr.File(label="Sung Notes")]
 
-    vocals, notes = rename_outputs((touch(tmp_path, "tmp3kx9q.wav"), touch(tmp_path, "out.mid")),
-                                   outputs, "Open-Unmix")
+    vocals, notes = rename_outputs(
+        (touch(tmp_path, "tmp3kx9q.wav"), touch(tmp_path, "out.mid")), outputs, "Open-Unmix"
+    )
 
     assert Path(vocals).name == "open-unmix_vocals.wav"
     assert Path(notes).name == "open-unmix_sung-notes.mid"
@@ -304,10 +312,15 @@ def test_results_are_named_after_the_model_and_the_output(tmp_path):
 
 
 def test_outputs_sharing_a_label_or_lacking_one_are_told_apart_by_position(tmp_path):
-    outputs = [gr.Audio(type="filepath", label="Take"), gr.Audio(type="filepath", label="Take"),
-               gr.Audio(type="filepath")]
-    names = [Path(p).name for p in rename_outputs(
-        tuple(touch(tmp_path, f"{n}.wav") for n in "abc"), outputs, "TRIA")]
+    outputs = [
+        gr.Audio(type="filepath", label="Take"),
+        gr.Audio(type="filepath", label="Take"),
+        gr.Audio(type="filepath"),
+    ]
+    names = [
+        Path(p).name
+        for p in rename_outputs(tuple(touch(tmp_path, f"{n}.wav") for n in "abc"), outputs, "TRIA")
+    ]
 
     assert names == ["tria_take-1.wav", "tria_take-2.wav", "tria_3.wav"]
 
@@ -317,8 +330,11 @@ def test_values_that_are_not_files_pass_through(tmp_path):
     array_audio = (44100, [0.0])
     outputs = [gr.JSON(), gr.Audio(type="numpy", label="Audio"), gr.Audio(type="filepath")]
 
-    assert rename_outputs((labels, array_audio, None), outputs, "Probe") == \
-        (labels, array_audio, None)
+    assert rename_outputs((labels, array_audio, None), outputs, "Probe") == (
+        labels,
+        array_audio,
+        None,
+    )
 
 
 def test_a_list_of_files_is_numbered(tmp_path):
@@ -332,9 +348,12 @@ def test_the_endpoint_renames_what_the_worker_returns(tmp_path, progress):
     import jobs
 
     song = touch(tmp_path, "riff.wav")
-    _, demo = endpoint(jobs.write_temporary_output, inputs=[gr.Audio(type="filepath")],
-                       outputs=[gr.Audio(type="filepath", label="Accompaniment")],
-                       model_card=card(name="AnyAccomp"))
+    _, demo = endpoint(
+        jobs.write_temporary_output,
+        inputs=[gr.Audio(type="filepath")],
+        outputs=[gr.Audio(type="filepath", label="Accompaniment")],
+        model_card=card(name="AnyAccomp"),
+    )
     handler = next(spec.fn for spec in demo.fns.values() if spec.api_name == "process")
 
     try:

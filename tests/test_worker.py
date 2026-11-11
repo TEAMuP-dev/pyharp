@@ -13,11 +13,9 @@ import threading
 import time
 
 import gradio as gr
-import pytest
-
-from conftest import cancel_after
-
 import jobs
+import pytest
+from conftest import cancel_after
 
 
 def is_running(pid):
@@ -347,6 +345,7 @@ def test_a_request_does_not_leak_into_the_next_job(supervisor, progress, serving
 
     assert instance.run(jobs.report_request_headers, progress=progress) is None
 
+
 # --------------------------------------------------------------------------------
 # Whose job a cancel belongs to
 # --------------------------------------------------------------------------------
@@ -359,6 +358,7 @@ def _run_in_background(sup, outcome, progress, seconds=14):
     A new thread gets an empty context, so the headers the test set would not reach
     run() without copying it over.
     """
+
     def job():
         try:
             outcome["result"] = sup.run(jobs.sleep_interruptibly, seconds, progress=progress)
@@ -406,7 +406,9 @@ def test_a_cancel_from_the_same_client_stops_the_job(supervisor, progress, servi
     assert outcome.get("error") == "Job canceled.", outcome
 
 
-def test_an_unidentified_cancel_cannot_stop_an_identified_job(supervisor, progress, serving_request):
+def test_an_unidentified_cancel_cannot_stop_an_identified_job(
+    supervisor, progress, serving_request
+):
     """The Gradio page in a browser must not stop a job HARP started."""
     sup = supervisor()
     outcome = {}
@@ -424,8 +426,9 @@ def test_an_unidentified_cancel_cannot_stop_an_identified_job(supervisor, progre
     assert outcome.get("result") == "finished", outcome
 
 
-def test_a_cancel_from_the_same_browser_session_stops_the_job(supervisor, progress,
-                                                              serving_request):
+def test_a_cancel_from_the_same_browser_session_stops_the_job(
+    supervisor, progress, serving_request
+):
     """
     The Gradio page sends no id of its own, so the Cancel button on it is matched on the
     session Gradio gives the page.
@@ -446,8 +449,7 @@ def test_a_cancel_from_the_same_browser_session_stops_the_job(supervisor, progre
     assert outcome.get("error") == "Job canceled.", outcome
 
 
-def test_a_cancel_from_another_browser_session_is_ignored(supervisor, progress,
-                                                          serving_request):
+def test_a_cancel_from_another_browser_session_is_ignored(supervisor, progress, serving_request):
     """One visitor to the Gradio page must not stop another visitor's job."""
     sup = supervisor()
     outcome = {}
