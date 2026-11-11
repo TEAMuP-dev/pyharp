@@ -5,6 +5,11 @@
   </picture>
 </a>
 
+[![Version](https://img.shields.io/github/v/tag/TEAMuP-dev/pyharp?sort=semver)](https://github.com/TEAMuP-dev/pyharp/tags)
+[![License](https://img.shields.io/github/license/TEAMuP-dev/pyharp)](https://github.com/TEAMuP-dev/pyharp/blob/main/LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://github.com/TEAMuP-dev/pyharp/blob/main/setup.py)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fharp.tools&label=harp.tools)](https://harp.tools/)
+
 PyHARP is the **companion package** of [HARP](https://github.com/TEAMuP-dev/HARP), an application that brings machine learning models into Digital Audio Workstations (DAWs). It wraps **arbitrary Python code** for audio and MIDI processing in [Gradio](https://www.gradio.app) endpoints that HARP can reach, so that a model too demanding for common hardware runs remotely and asynchronously. HARP runs as a standalone application or as an external editor beside a DAW (_e.g._, [REAPER](https://www.reaper.fm), [Logic Pro](https://www.apple.com/logic-pro/), or [Ableton Live](https://www.ableton.com/en/live/)). [Our website](https://harp.tools/download/) covers installing HARP and setting it up with each operating system and DAW.
 
 This README documents how to build a PyHARP app, and our website walks through
@@ -35,6 +40,8 @@ with two examples taken from the models we host. HARP's [deployment guidelines](
     * **[Self-Hosted Endpoints](#self-hosted-endpoints)**
     * **[Accessing Within HARP](#accessing-within-harp)**
         * **[Listing on the Home Tab](#listing-on-the-home-tab)**
+* **[Contributing](#contributing)**
+* **[Citing](#citing)**
 
 # Usage
 ## Installing
@@ -902,3 +909,49 @@ tags:
 ![A Space listed on HARP's Home tab by its README metadata](https://harp.tools/images/home-tab-card.png)
 
 Both fields are optional. A Space without them is still listed, under "Other" and by name alone, and once it is loaded, HARP uses its model card as usual. They are only relevant to Spaces: an app run locally or self-hosted is opened as a custom path, and needs nothing beyond its model card.
+
+We offer to host deployments under the organization. [Open an issue](https://github.com/TEAMuP-dev/HARP/issues) if you would like yours to be featured on the Home tab.
+
+# Contributing
+The code is formatted and linted with [ruff](https://docs.astral.sh/ruff/), which [`ruff.toml`](ruff.toml) configures with a line length of 100. To run both checks on each commit, enable the [pre-commit](https://pre-commit.com) hooks once:
+```bash
+pipx run pre-commit install
+```
+To run them once over every file instead:
+```bash
+pipx run pre-commit run --all-files
+```
+The [tests](#tests) run with `pip install -e ".[test]"` followed by `pytest tests`.
+
+# Citing
+If you use PyHARP in academic work, please cite the HARP paper for the version you used.
+
+[NeurIPS 2025 Workshop on AI for Music Paper](https://openreview.net/pdf?id=Ha2z921r51):
+```
+@inproceedings{cwitkowitz2025harp,
+    title     = {{HARP} 3.0: Generalizing {I/O} and {API} Support for Machine Learning in Digital Audio Workstations},
+    author    = {Cwitkowitz, Frank and Benetatos, Christodoulos and Deng, Qixin and Yu, Huiran and Pruyne, Nathan and O'Reilly, Patrick and Garcia, Hugo Flores and Duan, Zhiyao and Pardo, Bryan},
+    year      = 2025,
+    booktitle = {NeurIPS AI for Music Workshop}
+}
+```
+
+[ISMIR 2024 Late Breaking Demo](https://ismir2024program.ismir.net/lbd_497.html):
+```
+@article{benetatos2024harp,
+    title     = {{HARP} 2.0: Expanding Hosted, Asynchronous, Remote Processing for Deep Learning in the {DAW}},
+    author    = {Benetatos, Christodoulos and Cwitkowitz, Frank and Pruyne, Nathan and Garcia, Hugo Flores and O'Reilly, Patrick and Duan, Zhiyao and Pardo, Bryan},
+    year      = 2024,
+    journal   = {ISMIR Late Breaking Demo Papers}
+}
+```
+
+[NeurIPS 2023 Workshop on Machine Learning for Creativity and Design Paper](https://neuripscreativityworkshop.github.io/2023/papers/ml4cd2023_paper23.pdf):
+```
+@inproceedings{garcia2023harp,
+    title     = {{HARP}: Bringing Deep Learning to the {DAW} with Hosted, Asynchronous, Remote Processing},
+    author    = {Garcia, Hugo Flores and O’Reilly, Patrick and Aguilar, Aldo and Pardo, Bryan and Benetatos, Christodoulos and Duan, Zhiyao},
+    year      = 2023,
+    booktitle = {NeurIPS Workshop on Machine Learning for Creativity and Design}
+}
+```
