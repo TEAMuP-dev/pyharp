@@ -40,7 +40,7 @@ if __name__ != "__main__":
     synthesizer = Synthesizer(
         sf_path=BuiltInSF3.MuseScoreGeneral().path(download=True),
         sample_rate=SAMPLE_RATE,
-        quality=4 # Default quality setting
+        quality=4,  # Default quality setting
     )
 
 
@@ -62,10 +62,7 @@ def process_fn(input_midi_path: str) -> str:
     except Exception as exc:
         raise gr.Error(f"Could not read the MIDI file: {exc}") from exc
 
-    audio = audiotools.AudioSignal(
-        synthesizer.render(midi, stereo=True),
-        sample_rate=SAMPLE_RATE
-    )
+    audio = audiotools.AudioSignal(synthesizer.render(midi, stereo=True), sample_rate=SAMPLE_RATE)
 
     output_audio_path = str(save_audio(audio))
 
@@ -78,20 +75,16 @@ if __name__ == "__main__":
     with gr.Blocks() as demo:
         # Order must match the process_fn signature
         input_components = [
-            gr.File(
-                type="filepath",
-                label="Input MIDI",
-                file_types=[".mid", ".midi"]
-            ).harp_required(True).set_info("The MIDI to render."),
+            gr.File(type="filepath", label="Input MIDI", file_types=[".mid", ".midi"])
+            .harp_required(True)
+            .set_info("The MIDI to render."),
         ]
 
         # Order must match the values returned by process_fn
         output_components = [
-            gr.Audio(
-                type="filepath",
-                format="wav",
-                label="Synthesized Audio"
-            ).set_info("The synthesized audio."),
+            gr.Audio(type="filepath", format="wav", label="Synthesized Audio").set_info(
+                "The synthesized audio."
+            ),
         ]
 
         app = build_endpoint(

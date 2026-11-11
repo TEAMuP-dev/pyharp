@@ -1,17 +1,13 @@
-from .utils import *
-
 import symusic
 
+from .utils import add_timestamp_to_path, get_default_path
 
-__all__ = [
-    'load_midi',
-    'save_midi',
-    'ticks_to_seconds',
-    'get_tick_time_in_seconds'
-]
+
+__all__ = ["load_midi", "save_midi", "ticks_to_seconds", "get_tick_time_in_seconds"]
 
 # The tempo a MIDI file plays at until a tempo event says otherwise
 DEFAULT_QPM = 120.0
+
 
 def load_midi(input_midi_path):
     """
@@ -28,6 +24,7 @@ def load_midi(input_midi_path):
 
     return midi
 
+
 def save_midi(midi, output_midi_path=None, include_timestamp=False) -> str:
     """
     Saves MIDI to a specified path using symusic (https://yikai-liao.github.io/symusic/).
@@ -41,8 +38,9 @@ def save_midi(midi, output_midi_path=None, include_timestamp=False) -> str:
         output_midi_path (str): the filepath of the saved MIDI.
     """
 
-    assert isinstance(midi, symusic.Score), \
+    assert isinstance(midi, symusic.Score), (
         "Default loading only supports instances of symusic.Score."
+    )
 
     if output_midi_path is None:
         output_midi_path = get_default_path(ext=".mid")
@@ -53,6 +51,7 @@ def save_midi(midi, output_midi_path=None, include_timestamp=False) -> str:
     midi.dump_midi(output_midi_path)
 
     return output_midi_path
+
 
 def ticks_to_seconds(ticks, tempo, ticks_per_quarter):
     """
@@ -72,6 +71,7 @@ def ticks_to_seconds(ticks, tempo, ticks_per_quarter):
 
     return seconds
 
+
 def get_tick_time_in_seconds(tick, midi):
     """
     Determine the absolute time corresponding to a given tick.
@@ -88,9 +88,7 @@ def get_tick_time_in_seconds(tick, midi):
     # carrying no tempo at all. A tempo event at tick zero supersedes this entry, since
     # the stretch it covers is then empty.
     segments = [(0, DEFAULT_QPM)]
-    segments += [
-        (tempo.time, tempo.qpm) for tempo in sorted(midi.tempos, key=lambda t: t.time)
-    ]
+    segments += [(tempo.time, tempo.qpm) for tempo in sorted(midi.tempos, key=lambda t: t.time)]
 
     time = 0.0
 

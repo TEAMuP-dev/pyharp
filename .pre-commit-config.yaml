@@ -1,0 +1,9 @@
+# Formats and lints the Python of the repository. See "Contributing" in the README.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format

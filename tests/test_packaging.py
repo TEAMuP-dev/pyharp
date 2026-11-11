@@ -13,6 +13,7 @@ from importlib import metadata
 
 import pytest
 
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
@@ -77,8 +78,7 @@ def test_gradio_is_pinned_above_the_version_that_forwards_errors(setup_kwargs):
     from packaging.requirements import Requirement
 
     gradio = next(
-        Requirement(r) for r in setup_kwargs["install_requires"]
-        if Requirement(r).name == "gradio"
+        Requirement(r) for r in setup_kwargs["install_requires"] if Requirement(r).name == "gradio"
     )
 
     assert not gradio.specifier.contains("6.12.0")
@@ -127,5 +127,5 @@ def test_the_installed_version_satisfies_the_pin(requirement):
 
     assert parsed.specifier.contains(installed, prereleases=True), (
         f"{parsed.name} {installed} is installed, but pyharp declares "
-        f"\"{requirement}\". Reinstall with \"pip install -e .\" to bring it in line."
+        f'"{requirement}". Reinstall with "pip install -e ." to bring it in line.'
     )

@@ -1,0 +1,22 @@
+# Formatting and lint rules for pyharp. See "Contributing" in the README.
+
+line-length = 100
+target-version = "py310"
+
+# Code blocks in Markdown are fragments, which a formatter reads as whole statements
+extend-exclude = ["*.md"]
+
+[lint]
+# pycodestyle, Pyflakes, and import sorting
+select = ["E", "F", "W", "I"]
+
+[lint.isort]
+lines-after-imports = 2
+
+[lint.per-file-ignores]
+# A package re-exports the names of its modules
+"**/__init__.py" = ["F401", "F403"]
+# These imports follow code that has to run before them
+"pyharp/__init__.py" = ["F401", "F403", "I001"]
+# An app imports pyharp whole and ahead of everything else
+"examples/**" = ["F403", "F405", "I001"]

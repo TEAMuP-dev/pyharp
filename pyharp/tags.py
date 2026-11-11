@@ -14,23 +14,22 @@ cannot disagree. A HARP built against an older taxonomy still shows a tag it doe
 recognize, just without categorizing the model by it.
 """
 
+import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Iterable, List, Union
 
-import json
-
 
 __all__ = [
-    'Category',
-    'Subcategory',
-    'SampleRate',
-    'Channels',
-    'Modality',
-    'Tag',
-    'build_tags',
-    'validate_tag'
+    "Category",
+    "Subcategory",
+    "SampleRate",
+    "Channels",
+    "Modality",
+    "Tag",
+    "build_tags",
+    "validate_tag",
 ]
 
 
@@ -63,17 +62,21 @@ def _member_name(taxonomy_id: str) -> str:
 _TAXONOMY = json.loads((Path(__file__).parent / "taxonomy.json").read_text(encoding="utf-8"))
 
 # Top level of the audio production model taxonomy, e.g. Category.SEPARATION
-Category = _Category("Category", [
-    (_member_name(c["id"]), (c["id"], c["name"])) for c in _TAXONOMY["categories"]
-])
+Category = _Category(
+    "Category", [(_member_name(c["id"]), (c["id"], c["name"])) for c in _TAXONOMY["categories"]]
+)
 
 # Second level of the taxonomy, e.g. Subcategory.STEM_SEPARATION. Each subcategory belongs
 # to exactly one category, and ids are unique across the whole taxonomy so that a
 # subcategory tag alone is enough to place a model.
-Subcategory = _Subcategory("Subcategory", [
-    (_member_name(s["id"]), (Category[_member_name(c["id"])], s["id"], s["name"]))
-    for c in _TAXONOMY["categories"] for s in c["subcategories"]
-])
+Subcategory = _Subcategory(
+    "Subcategory",
+    [
+        (_member_name(s["id"]), (Category[_member_name(c["id"])], s["id"], s["name"]))
+        for c in _TAXONOMY["categories"]
+        for s in c["subcategories"]
+    ],
+)
 
 
 class Modality(Enum):
@@ -181,20 +184,28 @@ def validate_tag(tag: str) -> str:
     key, _, value = tag.partition(":")
 
     if key == CATEGORY_KEY and value not in {c.id for c in Category}:
-        raise ValueError(f"Unknown category in tag '{tag}'. Choose one of "
-                         f"{[c.id for c in Category]}.")
+        raise ValueError(
+            f"Unknown category in tag '{tag}'. Choose one of {[c.id for c in Category]}."
+        )
     if key == SUBCATEGORY_KEY and value not in {s.id for s in Subcategory}:
-        raise ValueError(f"Unknown subcategory in tag '{tag}'. Choose one of "
-                         f"{[s.id for s in Subcategory]}.")
+        raise ValueError(
+            f"Unknown subcategory in tag '{tag}'. Choose one of {[s.id for s in Subcategory]}."
+        )
     if key in (INPUT_KEY, OUTPUT_KEY):
-        raise ValueError(f"Tag '{tag}' is inferred from the Gradio components passed to "
-                         f"build_endpoint, so it cannot be given by hand.")
+        raise ValueError(
+            f"Tag '{tag}' is inferred from the Gradio components passed to "
+            f"build_endpoint, so it cannot be given by hand."
+        )
     if key == SAMPLE_RATE_KEY and not value.isdigit():
         raise ValueError(f"Sample rate in tag '{tag}' must be a whole number of Hz.")
-    if key == CHANNELS_KEY and value not in Channels.NAMES.values() and not (
-            value.isdigit() and int(value) > 0):
-        raise ValueError(f"Channels in tag '{tag}' must be \"mono\", \"stereo\", or a "
-                         f"positive whole number.")
+    if (
+        key == CHANNELS_KEY
+        and value not in Channels.NAMES.values()
+        and not (value.isdigit() and int(value) > 0)
+    ):
+        raise ValueError(
+            f'Channels in tag \'{tag}\' must be "mono", "stereo", or a positive whole number.'
+        )
 
     return tag
 
@@ -254,8 +265,9 @@ def build_tags(tags: Iterable[Tag] = (), inferred: Iterable[str] = ()) -> List[s
         elif isinstance(tag, str):
             others.append(validate_tag(tag))
         else:
-            raise ValueError(f"'{tag}' is not a Category, Subcategory, SampleRate, Channels, "
-                             f"or string.")
+            raise ValueError(
+                f"'{tag}' is not a Category, Subcategory, SampleRate, Channels, or string."
+            )
 
     # Preserve order while dropping repeats (e.g., a category implied twice)
     return list(dict.fromkeys(taxonomy + list(inferred) + others))

@@ -68,7 +68,7 @@ def build_audio_labels(duration: float, descriptions: dict) -> list:
             duration=1.0,
             description=descriptions["sliders"],
             color=OutputLabel.rgb_color_to_int(0, 255, 0),
-            link="https://github.com/TEAMuP-dev/pyharp"
+            link="https://github.com/TEAMuP-dev/pyharp",
         ),
         # Overlay, pinned to the bottom of the waveform
         AudioLabel(
@@ -77,7 +77,7 @@ def build_audio_labels(duration: float, descriptions: dict) -> list:
             duration=1.0,
             description=descriptions["dropdowns"],
             color=OutputLabel.rgb_color_to_int(28, 102, 48),
-            amplitude=0.0
+            amplitude=0.0,
         ),
         # Overlay, pinned to the middle of the waveform
         AudioLabel(
@@ -86,7 +86,7 @@ def build_audio_labels(duration: float, descriptions: dict) -> list:
             duration=1.0,
             description=descriptions["checkboxes"],
             color=OutputLabel.rgb_color_to_int(102, 28, 48),
-            amplitude=0.5
+            amplitude=0.5,
         ),
         # Overhead, at the end, with no duration (a marker rather than a span)
         AudioLabel(
@@ -94,7 +94,7 @@ def build_audio_labels(duration: float, descriptions: dict) -> list:
             label="end",
             duration=0.0,
             description=descriptions["text"],
-            color=OutputLabel.rgb_color_to_int(0, 0, 255)
+            color=OutputLabel.rgb_color_to_int(0, 0, 255),
         ),
     ]
 
@@ -120,7 +120,7 @@ def build_midi_labels(descriptions: dict) -> list:
             label="start",
             duration=1.0,
             description=descriptions["number"],
-            color=OutputLabel.rgb_color_to_int(255, 255, 0)
+            color=OutputLabel.rgb_color_to_int(255, 255, 0),
         ),
         # Overlay, on the piano roll row for the given pitch
         MidiLabel(
@@ -129,7 +129,7 @@ def build_midi_labels(descriptions: dict) -> list:
             duration=1.0,
             description=descriptions["text"],
             color=OutputLabel.rgb_color_to_int(255, 128, 78),
-            pitch=76
+            pitch=76,
         ),
         # Overlay, as a marker with a clickable link
         MidiLabel(
@@ -138,7 +138,7 @@ def build_midi_labels(descriptions: dict) -> list:
             duration=0.0,
             color=OutputLabel.rgb_color_to_int(78, 128, 255),
             link="https://github.com/TEAMuP-dev/pyharp",
-            pitch=86
+            pitch=86,
         ),
     ]
 
@@ -154,7 +154,7 @@ def process_fn(
     effects: list,
     enable_audio_labels: bool,
     enable_midi_labels: bool,
-    text_prompt: str
+    text_prompt: str,
 ) -> Tuple[str, str, LabelList, str]:
     """
     Pass the input tracks through and annotate them with output labels.
@@ -206,10 +206,7 @@ def process_fn(
         "sliders": f"processing_delay: {processing_delay}, gain: {gain}",
         "number": f"repetitions: {repetitions}",
         "dropdowns": f"mode: {mode}, effects: {effects}",
-        "checkboxes": (
-            f"audio_labels: {enable_audio_labels}, "
-            f"midi_labels: {enable_midi_labels}"
-        ),
+        "checkboxes": (f"audio_labels: {enable_audio_labels}, midi_labels: {enable_midi_labels}"),
         "text": f"text_prompt: {text_prompt}",
     }
 
@@ -238,23 +235,14 @@ if __name__ == "__main__":
         # optional, so the app can be run without loading anything.
         # Order must match the process_fn signature.
         input_components = [
-            gr.Audio(
-                type="filepath",
-                label="Input Audio"
-            )
+            gr.Audio(type="filepath", label="Input Audio")
             .harp_required(False)
             .set_info("Passed through unchanged. Bundled reference audio is used if empty."),
-            gr.File(
-                type="filepath",
-                label="Input MIDI",
-                file_types=[".mid", ".midi"]
-            )
+            gr.File(type="filepath", label="Input MIDI", file_types=[".mid", ".midi"])
             .harp_required(False)
             .set_info("Passed through unchanged. Bundled reference MIDI is used if empty."),
             gr.File(
-                type="filepath",
-                label="Input File",
-                file_types=[".txt", ".csv", ".json", ".nam"]
+                type="filepath", label="Input File", file_types=[".txt", ".csv", ".json", ".nam"]
             )
             .harp_required(False)
             .set_info("A generic file. HARP shows this as a file picker, not a track."),
@@ -264,7 +252,7 @@ if __name__ == "__main__":
                 step=1,
                 value=0,
                 label="Processing Delay (s)",
-                info="Stalls processing, so the cancel button can be tested."
+                info="Stalls processing, so the cancel button can be tested.",
             ),
             gr.Slider(
                 minimum=0.0,
@@ -272,7 +260,7 @@ if __name__ == "__main__":
                 step=0.01,
                 value=0.5,
                 label="Gain",
-                info="A fractional slider (unused)."
+                info="A fractional slider (unused).",
             ),
             gr.Number(
                 minimum=1,
@@ -280,57 +268,43 @@ if __name__ == "__main__":
                 step=1,
                 value=4,
                 label="Repetitions",
-                info="A number box (unused)."
+                info="A number box (unused).",
             ),
             gr.Dropdown(
                 choices=["first", "second", "third"],
                 value="second",
                 label="Mode",
-                info="A dropdown (unused)."
+                info="A dropdown (unused).",
             ),
             gr.Dropdown(
                 choices=["reverb", "delay", "chorus"],
                 value=["reverb", "chorus"],
                 multiselect=True,
                 label="Effects",
-                info="A dropdown allowing more than one selection (unused)."
+                info="A dropdown allowing more than one selection (unused).",
             ),
             gr.Checkbox(
-                value=True,
-                label="Audio Labels",
-                info="Emit output labels over the audio track."
+                value=True, label="Audio Labels", info="Emit output labels over the audio track."
             ),
             gr.Checkbox(
-                value=True,
-                label="MIDI Labels",
-                info="Emit output labels over the MIDI track."
+                value=True, label="MIDI Labels", info="Emit output labels over the MIDI track."
             ),
             gr.Textbox(
                 value="Hello World",
                 label="Text Prompt",
-                info="A text box. Written to the output file when no input file is given."
+                info="A text box. Written to the output file when no input file is given.",
             ),
         ]
 
         # A gr.JSON output receives the LabelList and is drawn over the tracks.
         # Order must match the values returned by process_fn.
         output_components = [
-            gr.Audio(
-                type="filepath",
-                label="Output Audio"
-            ).set_info("The input audio, unchanged."),
-            gr.File(
-                type="filepath",
-                label="Output MIDI",
-                file_types=[".mid", ".midi"]
-            ).set_info("The input MIDI, unchanged."),
-            gr.JSON(
-                label="Output Labels"
-            ).set_info("Labels drawn over the output tracks."),
-            gr.File(
-                type="filepath",
-                label="Output File"
-            ).set_info("A generic file output."),
+            gr.Audio(type="filepath", label="Output Audio").set_info("The input audio, unchanged."),
+            gr.File(type="filepath", label="Output MIDI", file_types=[".mid", ".midi"]).set_info(
+                "The input MIDI, unchanged."
+            ),
+            gr.JSON(label="Output Labels").set_info("Labels drawn over the output tracks."),
+            gr.File(type="filepath", label="Output File").set_info("A generic file output."),
         ]
 
         app = build_endpoint(
