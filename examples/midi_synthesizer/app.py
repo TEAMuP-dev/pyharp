@@ -1,9 +1,10 @@
 """
 MIDI Synthesizer: a MIDI-to-audio template for PyHARP.
 
-Shows two things: that input and output tracks need not be the same media type
-(HARP sends a MIDI track and receives rendered audio back), and how to load a
-model once at startup rather than on every request.
+Shows three things: that input and output tracks need not be the same media
+type (HARP sends a MIDI track and receives rendered audio back), how to load a
+model once at startup rather than on every request, and how to take an optional
+file that is neither audio nor MIDI, here a soundfont to render with.
 """
 
 from pyharp import *
@@ -19,7 +20,10 @@ SAMPLE_RATE = 44100
 model_card = ModelCard(
     name="MIDI Synthesizer",
     author="TEAMuP",
-    description="Renders a MIDI file into stereo audio with the MuseScore General soundfont.",
+    description=(
+        "Renders a MIDI file into stereo audio with the MuseScore General soundfont, or with a "
+        "soundfont of your own."
+    ),
     tags=[
         Subcategory.INSTRUMENT_SYNTHESIS,
         Category.UTILITY,
@@ -44,12 +48,14 @@ if __name__ != "__main__":
     )
 
 
-def process_fn(input_midi_path: str) -> str:
+def process_fn(input_midi_path: str, soundfont_path: str | None) -> str:
     """
-    Render the input MIDI to audio with a general-purpose soundfont.
+    Render the input MIDI to audio with a soundfont.
 
     Args:
         input_midi_path (str): Path to the MIDI file sent by HARP.
+        soundfont_path (str | None): Path to a soundfont to use in place of the
+            general-purpose one, if HARP sent one.
 
     Returns:
         output_audio_path (str): Path to the rendered audio.
@@ -62,7 +68,17 @@ def process_fn(input_midi_path: str) -> str:
     except Exception as exc:
         raise gr.Error(f"Could not read the MIDI file: {exc}") from exc
 
-    audio = audiotools.AudioSignal(synthesizer.render(midi, stereo=True), sample_rate=SAMPLE_RATE)
+    # MuseScore General is the only soundfont symusic provides, so any other comes from
+    # the user. It is read for this request alone, which is quick next to the rendering.
+    renderer = synthesizer
+
+    if soundfont_path:
+        try:
+            renderer = Synthesizer(sf_path=soundfont_path, sample_rate=SAMPLE_RATE, quality=4)
+        except Exception as exc:
+            raise gr.Error(f"Could not read the soundfont: {exc}") from exc
+
+    audio = audiotools.AudioSignal(renderer.render(midi, stereo=True), sample_rate=SAMPLE_RATE)
 
     output_audio_path = str(save_audio(audio))
 
@@ -78,6 +94,10 @@ if __name__ == "__main__":
             gr.File(type="filepath", label="Input MIDI", file_types=[".mid", ".midi"])
             .harp_required(True)
             .set_info("The MIDI to render."),
+            # A gr.File without MIDI extensions becomes a file picker among the controls
+            gr.File(type="filepath", label="Soundfont", file_types=[".sf2", ".sf3"])
+            .harp_required(False)
+            .set_info("A soundfont to render with in place of MuseScore General."),
         ]
 
         # Order must match the values returned by process_fn
