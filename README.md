@@ -910,7 +910,7 @@ tags:
 
 Both fields are optional. A Space without them is still listed, under "Other" and by name alone, and once it is loaded, HARP uses its model card as usual. They are only relevant to Spaces: an app run locally or self-hosted is opened as a custom path, and needs nothing beyond its model card.
 
-We offer to host deployments under the organization. [Open an issue](https://github.com/TEAMuP-dev/HARP/issues) if you would like yours to be featured on the Home tab.
+We offer to feature models on the Home tab.
 
 # Contributing
 The code is formatted and linted with [ruff](https://docs.astral.sh/ruff/), which [`ruff.toml`](ruff.toml) configures with a line length of 100. To run both checks on each commit, enable the [pre-commit](https://pre-commit.com) hooks once:
