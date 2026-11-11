@@ -5,6 +5,7 @@ import threading
 import gradio as gr
 import pytest
 
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyharp.worker import JobSupervisor  # noqa: E402
@@ -61,9 +62,7 @@ def serving_request():
 
     def serve(headers, session_hash=None):
         request = (
-            gr.Request(headers=headers, session_hash=session_hash)
-            if headers is not None
-            else None
+            gr.Request(headers=headers, session_hash=session_hash) if headers is not None else None
         )
         tokens.append(LocalContext.request.set(request))
 

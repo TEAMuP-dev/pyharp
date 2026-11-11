@@ -19,8 +19,7 @@ model_card = ModelCard(
     name="Pitch Shifter",
     author="TEAMuP",
     description=(
-        "Shifts the pitch of an audio file by a number of semitones, without changing its "
-        "length."
+        "Shifts the pitch of an audio file by a number of semitones, without changing its length."
     ),
     tags=[Category.EFFECTS, Category.UTILITY, "example", "pitch shift"],
 )
@@ -49,10 +48,7 @@ def process_fn(input_audio_path: str, pitch_shift_amount: int) -> str:
         raise gr.Error("The audio file is empty.")
 
     pitch_shift = torchaudio.transforms.PitchShift(
-        signal.sample_rate,
-        n_steps=int(pitch_shift_amount),
-        bins_per_octave=12,
-        n_fft=512
+        signal.sample_rate, n_steps=int(pitch_shift_amount), bins_per_octave=12, n_fft=512
     )
     signal.audio_data = pitch_shift(signal.audio_data)
 
@@ -77,27 +73,23 @@ if __name__ == "__main__":
         # Audio and MIDI components become tracks in HARP. Everything else
         # becomes a GUI control. Order must match the process_fn signature.
         input_components = [
-            gr.Audio(
-                type="filepath",
-                label="Input Audio"
-            ).harp_required(True).set_info("The audio to shift."),
+            gr.Audio(type="filepath", label="Input Audio")
+            .harp_required(True)
+            .set_info("The audio to shift."),
             gr.Slider(
                 minimum=-24,
                 maximum=24,
                 step=1,
                 value=7,
                 label="Pitch Shift (semitones)",
-                info="The number of semitones by which to shift the pitch."
+                info="The number of semitones by which to shift the pitch.",
             ),
         ]
 
         # Order must match the values returned by process_fn
         output_components = [
             # No format is set, so Gradio returns the container process_fn chose
-            gr.Audio(
-                type="filepath",
-                label="Shifted Audio"
-            ).set_info("The pitch-shifted audio."),
+            gr.Audio(type="filepath", label="Shifted Audio").set_info("The pitch-shifted audio."),
         ]
 
         app = build_endpoint(

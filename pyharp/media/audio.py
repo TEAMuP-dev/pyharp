@@ -1,12 +1,10 @@
-from .utils import *
-
 import audiotools
 
+from .utils import add_timestamp_to_path, get_default_path
 
-__all__ = [
-    'load_audio',
-    'save_audio'
-]
+
+__all__ = ["load_audio", "save_audio"]
+
 
 def load_audio(input_audio_path):
     """
@@ -23,6 +21,7 @@ def load_audio(input_audio_path):
 
     return signal
 
+
 def save_audio(signal, output_audio_path=None, include_timestamp=False) -> str:
     """
     Saves audio to a specified path using audiotools (Descript).
@@ -36,8 +35,9 @@ def save_audio(signal, output_audio_path=None, include_timestamp=False) -> str:
         output_audio_path (str): the filepath of the saved audio.
     """
 
-    assert isinstance(signal, audiotools.AudioSignal), \
+    assert isinstance(signal, audiotools.AudioSignal), (
         "Default loading only supports instances of audiotools.AudioSignal."
+    )
 
     if output_audio_path is None:
         output_audio_path = get_default_path(ext=".wav")

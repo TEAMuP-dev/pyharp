@@ -452,9 +452,7 @@ class JobSupervisor:
 
         if results_q is not None:
             # Frees whichever request is waiting on this worker's queue
-            results_q.put(
-                (job_id, "gr_error", (f"Job {reason}.", 10, True, reason.capitalize()))
-            )
+            results_q.put((job_id, "gr_error", (f"Job {reason}.", 10, True, reason.capitalize())))
 
         self._worker = None
         self._jobs_q = None

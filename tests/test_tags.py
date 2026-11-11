@@ -11,6 +11,7 @@ import sys
 
 import pytest
 
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyharp.tags import (  # noqa: E402
@@ -86,29 +87,35 @@ def test_a_sample_rate_has_to_be_positive():
 # --------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("tag", [
-    "example",
-    "pitch shift",
-    "category:separation",
-    "subcategory:stem-separation",
-    "sample-rate:44100",
-    "channels:mono",
-    "channels:stereo",
-    "channels:6",
-])
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "example",
+        "pitch shift",
+        "category:separation",
+        "subcategory:stem-separation",
+        "sample-rate:44100",
+        "channels:mono",
+        "channels:stereo",
+        "channels:6",
+    ],
+)
 def test_a_usable_tag_is_accepted(tag):
     assert validate_tag(tag) == tag
 
 
-@pytest.mark.parametrize("tag", [
-    "category:separtion",
-    "subcategory:stem-seperation",
-    "sample-rate:44.1kHz",
-    "channels:banana",
-    "channels:0",
-    "",
-    "   ",
-])
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "category:separtion",
+        "subcategory:stem-seperation",
+        "sample-rate:44.1kHz",
+        "channels:banana",
+        "channels:0",
+        "",
+        "   ",
+    ],
+)
 def test_a_tag_HARP_could_not_place_is_rejected(tag):
     """
     HARP keeps an unrecognized structured tag as a custom one rather than raising, so a

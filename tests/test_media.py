@@ -9,13 +9,14 @@ import sys
 import numpy as np
 import pytest
 
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pyharp.media import (  # noqa: E402
     add_timestamp_to_path,
     get_default_path,
-    get_timestamp,
     get_tick_time_in_seconds,
+    get_timestamp,
     load_audio,
     load_midi,
     save_audio,
@@ -33,7 +34,7 @@ def test_a_timestamp_is_ordered_and_filename_safe():
     stamp = get_timestamp()
 
     assert re.fullmatch(r"\d{2}-\d{2}-\d{4}_\d{2}-\d{2}-\d{2}", stamp)
-    assert not set(stamp) & set("/\\:*?\"<>| ")
+    assert not set(stamp) & set('/\\:*?"<>| ')
 
 
 def test_a_timestamp_takes_a_format():
@@ -137,7 +138,10 @@ def score():
     """The MIDI the UI tester ships, so these run against a real file."""
     path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "examples", "ui_tester", "resources", "test.mid",
+        "examples",
+        "ui_tester",
+        "resources",
+        "test.mid",
     )
 
     if not os.path.exists(path):

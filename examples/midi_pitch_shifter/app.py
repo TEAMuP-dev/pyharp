@@ -59,27 +59,23 @@ if __name__ == "__main__":
         # A gr.File restricted to MIDI extensions becomes a MIDI track in HARP.
         # Order must match the process_fn signature.
         input_components = [
-            gr.File(
-                type="filepath",
-                label="Input MIDI",
-                file_types=[".mid", ".midi"]
-            ).harp_required(True).set_info("The MIDI to transpose."),
+            gr.File(type="filepath", label="Input MIDI", file_types=[".mid", ".midi"])
+            .harp_required(True)
+            .set_info("The MIDI to transpose."),
             gr.Slider(
                 minimum=-24,
                 maximum=24,
                 step=1,
                 value=7,
                 label="Pitch Shift (semitones)",
-                info="The number of semitones by which to transpose."
+                info="The number of semitones by which to transpose.",
             ),
         ]
 
         # Order must match the values returned by process_fn
         output_components = [
             gr.File(
-                type="filepath",
-                label="Transposed MIDI",
-                file_types=[".mid", ".midi"]
+                type="filepath", label="Transposed MIDI", file_types=[".mid", ".midi"]
             ).set_info("The transposed MIDI."),
         ]
 
