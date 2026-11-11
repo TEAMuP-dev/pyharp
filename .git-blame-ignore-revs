@@ -1,0 +1,6 @@
+# Commits that only reformat the code, which git blame should skip. GitHub applies this file to its
+# blame view, and a local clone does after:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Python formatting with ruff
+38091517d8472b1db817e4c2e8b95b241de91e1a
