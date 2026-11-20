@@ -14,6 +14,7 @@ tags:
   - subcategory:instrument-synthesis
   - category:utility
   - input:midi
+  - input:file/sf2|sf3
   - output:audio/wav
   - sample-rate:44100
   - channels:stereo
